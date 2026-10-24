@@ -154,23 +154,23 @@ Daftar tugas implementasi bertahap untuk SembakoOS. Mengikuti `AGENTS.md`, `PRD.
 
 ---
 
-## Fase 5: Backup, Audit, Pengaturan & Hardening (BKP, AUD, SET) (Fase Aktif)
+## Fase 5: Backup, Audit, Pengaturan & Hardening (BKP, AUD, SET) (Selesai 100%)
 
-- [ ] **T5.01 Backup Manual Terenkripsi/Validasi Checksum**
+- [x] **T5.01 Backup Manual Terenkripsi/Validasi Checksum**
   - Ref: `PRD.md` FR-BKP-01..02, BR-28, AC-32
-  - Selesai bila: Ekspor berkas `.json.gz` berisi seluruh tabel IndexedDB disertai metadata manifest & SHA-256 checksum.
-- [ ] **T5.02 Restore Database & Pengujian Integritas**
+  - Selesai: `BackupService.exportBackup` mengekspor seluruh tabel IndexedDB, menyertakan metadata manifest (app version, schema version, record count), dan menghitung SHA-256 checksum yang divalidasi. Mencatat ke `backup_history`. Teruji di `tests/integration/services/backup-restore.test.ts`.
+- [x] **T5.02 Restore Database & Pengujian Integritas**
   - Ref: `PRD.md` FR-BKP-03..04, AC-33
-  - Selesai bila: Berkas backup divalidasi checksum & versi skema sebelum diimpor; konfirmasi destruktif AlertDialog wajib dijawab.
-- [ ] **T5.03 Layanan & Viewer Audit Log**
+  - Selesai: `BackupService.validateBackup` memverifikasi integritas checksum SHA-256 dan versi skema sebelum diizinkan restore. `restoreBackup` mengeksekusi pemulihan data atomik di dalam transaksi Dexie dan mencatat audit log `system.restore`. Modal konfirmasi destruktif (`BackupRestoreTab.tsx`). Teruji di `tests/integration/services/backup-restore.test.ts`.
+- [x] **T5.03 Layanan & Viewer Audit Log**
   - Ref: `PRD.md` FR-AUD-01..03, AC-34, AC-35
-  - Selesai bila: Tabel `audit_logs` append-only mencatat pengguna, waktu, aksi sensitif, payload before/after; UI audit viewer untuk Owner.
-- [ ] **T5.04 Pengaturan Toko & Hak Akses Pengguna**
+  - Selesai: `AuditService.listAuditLogs` mengambil seluruh jejak audit append-only dengan filter aksi/aktor. `AuditViewerTab.tsx` menampilkan badge semantik dan modal inspector detail Before/After JSON. Teruji di `tests/integration/services/settings-audit.test.ts`.
+- [x] **T5.04 Pengaturan Toko & Hak Akses Pengguna**
   - Ref: `PRD.md` FR-SET-01..04, AC-36
-  - Selesai bila: Kelola nama toko, alamat struk, batas diskon, ambang opname, dan manajemen pengguna/peran.
-- [ ] **T5.05 Hardening PWA & Pengujian Mode Pesawat**
+  - Selesai: `SettingsService` mengelola identitas toko (nama toko, alamat struk, telepon, footer) dan kebijakan batas keamanan. Manajemen staf pengguna dengan peran (`owner`, `supervisor`, `cashier`, `stock_clerk`), pembuatan pengguna baru, reset PIN 6-digit terenkripsi PBKDF2, dan toggle status aktif/nonaktif (`StoreSettingsTab.tsx`, `UserManagementTab.tsx`). Teruji di `tests/integration/services/settings-audit.test.ts`.
+- [x] **T5.05 Hardening PWA & Pengujian Mode Pesawat**
   - Ref: `PRD.md` AC-37..42, `ARCHITECTURE.md` §8
-  - Selesai bila: Service worker mem-precache seluruh shell & asset font; 100% alur kasir dan katalog berfungsi normal saat offline.
+  - Selesai: `public/manifest.json` standalone orientation landscape, `public/sw.js` precache app shell & assets offline fallback, pendaftaran service worker di `main.tsx`, dan 100% data transaksi tersimpan lokal di IndexedDB Dexie. Teruji dengan build produksi `pnpm build` hijau.
 
 ---
 

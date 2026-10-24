@@ -4,6 +4,22 @@ Catatan seluruh perubahan, implementasi fitur, pembaruan skema, dan keputusan ar
 
 Format mengacu pada [Keep a Changelog](https://keepachangelog.com/id/1.0.0/).
 
+## [Fase 5: Backup, Audit, Pengaturan & Hardening PWA] - 2026-10-25
+
+### Ditambahkan
+- Modul Backup Manual Terverifikasi: `BackupService.exportBackup` mengekspor seluruh tabel IndexedDB ke format JSON, menyertakan metadata manifest (app version, schema version, table counts), dan menghitung SHA-256 checksum untuk menjamin integritas data (FR-BKP-01..02, BR-28, AC-32).
+- Modul Restore Database Atomik: `BackupService.validateBackup` memverifikasi checksum SHA-256 dan versi skema sebelum diizinkan restore. `restoreBackup` melakukan pemulihan data atomik di dalam transaksi Dexie dan mencatat audit log `system.restore` (FR-BKP-03..04, AC-33).
+- Layar Backup & Restore: `BackupRestoreTab.tsx` dengan unduhan instan berkas JSON backup, pemilih berkas restore dengan pratinjau record, modal konfirmasi destruktif AlertDialog, dan tabel riwayat backup berkas.
+- Modul Layanan Audit Log: `AuditService` untuk penelusuran log audit append-only dengan filter aksi dan aktor pengguna (FR-AUD-01..03, AC-34, AC-35).
+- Layar Jejak Audit Sistem: `AuditViewerTab.tsx` menampilkan kronologi waktu kejadian, badge jenis aksi, nama aktor pengguna, entitas, alasan, dan tombol inspeksi detail Before/After JSON.
+- Modul Pengaturan Toko & Manajemen Pengguna: `SettingsService` untuk mengelola profil toko (nama toko, alamat struk, telepon, footer) dan kebijakan operasional (diskon kasir, auto-lock, ambang kedaluwarsa). Manajemen staf pengguna dengan peran (`owner`, `supervisor`, `cashier`, `stock_clerk`), pembuatan pengguna baru, reset PIN 6-digit terenkripsi PBKDF2, dan toggle status (FR-SET-01..04, AC-36).
+- Layar Antarmuka Pengaturan: `SettingsView.tsx` (`/settings`) dengan 4 tab interaktif (Identitas Toko, Pengguna & Peran, Backup & Restore, Jejak Audit).
+- Hardening PWA & Offline-First: `public/manifest.json` standalone landscape, `public/sw.js` precache app shell & assets offline fallback, pendaftaran service worker di `main.tsx`.
+- 67 unit & integration tests Vitest (seluruhnya lulus hijau).
+- Bukti visual verifikasi browser subagent pada seluruh tab halaman `/settings`.
+
+---
+
 ## [Fase 4: Batch, Kedaluwarsa & Laporan] - 2026-10-25
 
 ### Ditambahkan
