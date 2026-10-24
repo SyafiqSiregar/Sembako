@@ -300,10 +300,41 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                           >
                             {products.map((p) => (
                               <option key={p.product.id} value={p.product.id}>
-                                {p.product.name}
+                                {p.product.name} {p.product.track_expiry === 1 ? '(Lacak Kedaluwarsa)' : ''}
                               </option>
                             ))}
                           </select>
+                          {prod?.product.track_expiry === 1 && (
+                            <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                              <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                                Wajib Batch
+                              </span>
+                              <input
+                                type="text"
+                                placeholder="Kode Batch *"
+                                value={line.batchCode || ''}
+                                onChange={(e) => {
+                                  const updated = [...lines];
+                                  updated[idx]!.batchCode = e.target.value;
+                                  setLines(updated);
+                                }}
+                                className="py-1 px-2 text-[11px] bg-amber-50/50 border border-amber-300 rounded text-stone-900 w-28 focus:ring-1 focus:ring-amber-600"
+                                required
+                              />
+                              <input
+                                type="date"
+                                placeholder="Tgl Expiry *"
+                                value={line.expiryDate || ''}
+                                onChange={(e) => {
+                                  const updated = [...lines];
+                                  updated[idx]!.expiryDate = e.target.value;
+                                  setLines(updated);
+                                }}
+                                className="py-1 px-2 text-[11px] bg-amber-50/50 border border-amber-300 rounded text-stone-900 w-32 focus:ring-1 focus:ring-amber-600"
+                                required
+                              />
+                            </div>
+                          )}
                         </td>
                         <td className="px-3 py-2">
                           <select

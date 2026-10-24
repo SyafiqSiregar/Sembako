@@ -104,6 +104,21 @@ export class GoodsReceiptService {
       row_version: 1,
     };
 
+    // Validasi AC-23: Produk dengan track_expiry = 1 mewajibkan kode batch & tanggal kedaluwarsa
+    for (const item of input.items) {
+      const prod = await this.db.products.get(item.productId);
+      if (prod && prod.track_expiry === 1) {
+        if (!item.batchCode?.trim() || !item.expiryDate?.trim()) {
+          throw new Error(
+            `Produk '${prod.name}' memiliki pelacakan kedaluwarsa aktif sehingga wajib mencantumkan kode batch dan tanggal kedaluwarsa (AC-23)`
+          );
+        }
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(item.expiryDate.trim())) {
+          throw new Error(`Format tanggal kedaluwarsa pada '${prod.name}' harus YYYY-MM-DD`);
+        }
+      }
+    }
+
     // Transaksi Atomik Dexie: Simpan GR, Perbarui Moving Average Cost, Tambah Stok via InventoryService
     await this.db.transaction(
       'rw',
@@ -115,10 +130,51 @@ export class GoodsReceiptService {
         this.db.stock_movement_items,
         this.db.products,
         this.db.product_units,
+        this.db.product_batches,
         this.db.price_history,
         this.db.audit_logs,
       ],
       async () => {
+        // Siapkan batch dan item mutasi
+        const movementItems: {
+          productId: string;
+          batchId?: string;
+          qtyDeltaBase: number;
+          unitCostX10k: number;
+        }[] = [];
+
+        for (const it of input.items) {
+          let batchId: string | undefined = undefined;
+          if (it.batchCode?.trim() && it.expiryDate?.trim()) {
+            const trimmedCode = it.batchCode.trim();
+            const trimmedExpiry = it.expiryDate.trim();
+
+            let batch = await this.db.product_batches
+              .where({ product_id: it.productId, batch_code: trimmedCode })
+              .first();
+
+            if (!batch) {
+              batch = {
+                id: this.idGen.generateId(),
+                product_id: it.productId,
+                batch_code: trimmedCode,
+                expiry_date: trimmedExpiry,
+                active: 1,
+                created_at: now,
+              };
+              await this.db.product_batches.add(batch);
+            }
+            batchId = batch.id;
+          }
+
+          movementItems.push({
+            productId: it.productId,
+            batchId,
+            qtyDeltaBase: it.qtyBase, // Masuk = positif
+            unitCostX10k: it.unitCostX10k,
+          });
+        }
+
         // 1. Tambah stok via InventoryService (delta positif)
         await this.inventoryService.recordMovement({
           type: 'RECEIPT',
@@ -128,11 +184,7 @@ export class GoodsReceiptService {
           reason: `Penerimaan barang #${receiptNo} dari ${supplier.name}${
             input.supplierRefNo ? ` (Faktur: ${input.supplierRefNo})` : ''
           }`,
-          items: input.items.map((it) => ({
-            productId: it.productId,
-            qtyDeltaBase: it.qtyBase, // Masuk = positif
-            unitCostX10k: it.unitCostX10k,
-          })),
+          items: movementItems,
         });
 
         // 2. Hitung weighted average cost & update biaya produk (BR-26, FR-SUP-05)

@@ -4,6 +4,21 @@ Catatan seluruh perubahan, implementasi fitur, pembaruan skema, dan keputusan ar
 
 Format mengacu pada [Keep a Changelog](https://keepachangelog.com/id/1.0.0/).
 
+## [Fase 4: Batch, Kedaluwarsa & Laporan] - 2026-10-25
+
+### Ditambahkan
+- Modul Batch & Kedaluwarsa: `BatchService` untuk pembuatan batch dengan kode & tanggal kedaluwarsa, pemantauan status kedaluwarsa (`EXPIRED`, `CRITICAL` H-7, `WARNING` H-30, `SAFE`), dan pemusnahan barang rusak/kedaluwarsa (`writeOffBatch`) yang menghasilkan pergerakan `DAMAGE_SPOILAGE` serta audit log (FR-EXP-01..02, FR-EXP-05..06, AC-25).
+- Alokasi Penjualan FEFO (First-Expired First-Out): `BatchService.allocateFefo` otomatis dialokasikan dalam transaksi kasir `CheckoutService.processCheckout` untuk batch berumur simpan terdekat, dan pemblokiran penjualan barang yang sudah kedaluwarsa (`expiry_date < today`) (FR-EXP-03..04, AC-24).
+- Validasi Wajib Batch pada Penerimaan Barang: `GoodsReceiptService.createAndPostReceipt` mewajibkan kode batch dan format tanggal YYYY-MM-DD untuk produk dengan `track_expiry = 1` (AC-23).
+- Layar Monitoring Batch & Kedaluwarsa: `ExpiryView.tsx` (`/expiry`) dengan ringkasan status batch, indikator nilai risiko rupiah, filter status, dan modal pemusnahan (`WriteOffModal.tsx`).
+- Modul Laporan & Analitik Bisnis: `ReportService` menghitung omzet kotor, total diskon, refund retur, omzet bersih, jumlah transaksi, rata-rata keranjang (basket size), estimasi laba kotor & % margin, ranking produk terlaris (fast-moving), status stok & valuasi persediaan, dan rekonsiliasi kas per sesi (FR-RPT-01..07, AC-26..30).
+- Ekspor Laporan CSV UTF-8: `ReportService.exportToCsv` mengekspor seluruh laporan tab aktif dengan UTF-8 BOM (`\uFEFF`) agar kompatibel dibuka di Microsoft Excel (FR-RPT-08, AC-31).
+- Layar Antarmuka Laporan: `ReportsView.tsx` (`/reports`) dengan 4 tab interaktif, filter rentang waktu (Hari Ini, 7 Hari, Bulan Ini, Semua), dan kartu ringkasan metrik.
+- 61 unit & integration tests Vitest (seluruhnya lulus hijau).
+- Bukti visual verifikasi browser subagent pada halaman `/expiry` dan seluruh tab laporan `/reports`.
+
+---
+
 ## [Fase 3: Inventaris & Pemasok] - 2026-10-25
 
 ### Ditambahkan

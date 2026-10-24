@@ -5,6 +5,7 @@ import {
   type Payment,
 } from '@/data/db';
 import { InventoryService } from './inventory.service';
+import { BatchService } from './batch.service';
 import { assertMoney } from '@/domain/money';
 import { assertQuantity } from '@/domain/quantity';
 import { type Clock, type IdGenerator, defaultClock, defaultIdGenerator } from '@/domain/time';
@@ -42,12 +43,16 @@ export interface CheckoutResult {
 }
 
 export class CheckoutService {
+  private batchService: BatchService;
+
   constructor(
     private db: SembakoDatabase,
     private inventoryService: InventoryService,
     private clock: Clock = defaultClock,
     private idGen: IdGenerator = defaultIdGenerator
-  ) {}
+  ) {
+    this.batchService = new BatchService(this.db, this.inventoryService, this.clock, this.idGen);
+  }
 
   /**
    * Menjalankan Checkout Penjualan Kasir Atomik & Idempoten (BR-03, AC-02, AC-03, AC-04, AC-17).
@@ -158,8 +163,8 @@ export class CheckoutService {
       paid_at: now,
     };
 
-    // 6. Transaksi Atomik: Kurangi stok lewat InventoryService & simpan penjualan
-    // Jika stok habis atau penyimpanan gagal, seluruh transaksi Dexie dibatalkan (AC-04)
+    // 6. Transaksi Atomik: Alokasikan FEFO & Kurangi stok lewat InventoryService & simpan penjualan
+    // Jika stok habis, kedaluwarsa, atau penyimpanan gagal, seluruh transaksi Dexie dibatalkan (AC-04, AC-24)
     await this.db.transaction(
       'rw',
       [
@@ -170,22 +175,64 @@ export class CheckoutService {
         this.db.stock_movements,
         this.db.stock_movement_items,
         this.db.products,
+        this.db.product_batches,
         this.db.audit_logs,
       ],
       async () => {
-        // Kurangi stok fisik (delta negatif)
+        // Alokasikan pergerakan stok (FEFO jika track_expiry aktif)
+        const movementItems: {
+          productId: string;
+          batchId?: string;
+          qtyDeltaBase: number;
+          unitCostX10k: number;
+        }[] = [];
+
+        for (const it of params.items) {
+          const prod = await this.db.products.get(it.productId);
+          if (prod && prod.track_expiry === 1) {
+            if (it.batchId) {
+              const batch = await this.db.product_batches.get(it.batchId);
+              if (batch && batch.expiry_date < this.clock.todayDateString()) {
+                throw new Error(
+                  `Penjualan diblokir: Batch '${batch.batch_code}' pada produk '${prod.name}' telah kedaluwarsa (FR-EXP-04).`
+                );
+              }
+              movementItems.push({
+                productId: it.productId,
+                batchId: it.batchId,
+                qtyDeltaBase: -it.qtyBase,
+                unitCostX10k: it.unitCostX10kSnapshot,
+              });
+            } else {
+              // FEFO allocation otomatis (FR-EXP-03, AC-24)
+              const allocations = await this.batchService.allocateFefo(it.productId, it.qtyBase);
+              for (const alloc of allocations) {
+                movementItems.push({
+                  productId: it.productId,
+                  batchId: alloc.batchId,
+                  qtyDeltaBase: -alloc.qtyBase,
+                  unitCostX10k: it.unitCostX10kSnapshot,
+                });
+              }
+            }
+          } else {
+            movementItems.push({
+              productId: it.productId,
+              batchId: it.batchId,
+              qtyDeltaBase: -it.qtyBase, // Keluar = negatif
+              unitCostX10k: it.unitCostX10kSnapshot,
+            });
+          }
+        }
+
+        // Kurangi stok fisik lewat InventoryService
         await this.inventoryService.recordMovement({
           type: 'SALE',
           refType: 'sale',
           refId: params.saleId,
           userId: params.cashierId,
           reason: `Penjualan kasir struk #${receiptNo}`,
-          items: params.items.map((it) => ({
-            productId: it.productId,
-            batchId: it.batchId,
-            qtyDeltaBase: -it.qtyBase, // Keluar = negatif
-            unitCostX10k: it.unitCostX10kSnapshot,
-          })),
+          items: movementItems,
         });
 
         // Simpan penjualan & item

@@ -131,30 +131,30 @@ Daftar tugas implementasi bertahap untuk SembakoOS. Mengikuti `AGENTS.md`, `PRD.
 
 ---
 
-## Fase 4: Batch, Kedaluwarsa & Laporan (EXP & RPT) (Fase Aktif)
+## Fase 4: Batch, Kedaluwarsa & Laporan (EXP & RPT) (Selesai 100%)
 
-- [ ] **T4.01 Manajemen Batch & Tanggal Kedaluwarsa**
+- [x] **T4.01 Manajemen Batch & Tanggal Kedaluwarsa**
   - Ref: `PRD.md` FR-EXP-01..03, BR-21..24, AC-23
-  - Selesai bila: Produk berfitur batch mewajibkan tanggal kedaluwarsa saat penerimaan barang; saldo tercatat per batch.
-- [ ] **T4.02 Alokasi Penjualan FEFO (First-Expired First-Out)**
+  - Selesai: `BatchService.createOrGetBatch` dan integrasi `GoodsReceiptService.createAndPostReceipt`. Validasi wajib kode batch & tanggal kedaluwarsa jika `track_expiry = 1` (AC-23), saldo tersimpan per batch di `inventory_balances`. Teruji di `tests/integration/services/batch-fefo.test.ts`.
+- [x] **T4.02 Alokasi Penjualan FEFO (First-Expired First-Out)**
   - Ref: `PRD.md` FR-EXP-04, BR-23, AC-24
-  - Selesai bila: Checkout otomatis mengalokasikan stok dari batch dengan expiry terdekat; blokir penjualan barang yang sudah kedaluwarsa.
-- [ ] **T4.03 Peringatan Kedaluwarsa & Laporan Batch**
+  - Selesai: `BatchService.allocateFefo` terintegrasi langsung di dalam transaksi checkout atomik `CheckoutService.processCheckout`. Mengalokasikan kuantitas otomatis dari batch terdekat, dan memblokir penjualan batch kedaluwarsa (`expiry_date < today`, FR-EXP-04). Teruji di `tests/integration/services/batch-fefo.test.ts`.
+- [x] **T4.03 Peringatan Kedaluwarsa & Laporan Batch**
   - Ref: `PRD.md` FR-EXP-05, AC-25
-  - Selesai bila: Daftar barang hampir kedaluwarsa (H-30 s.d. H-1) tampil di dashboard & laporan khusus dengan badge penanda jelas.
-- [ ] **T4.04 Laporan Penjualan & Estimasi Laba Kotor**
+  - Selesai: Halaman `/expiry` (`ExpiryView.tsx`) dengan metric cards (Kedaluwarsa, Kritis ≤ 7 Hari, Peringatan ≤ 30 Hari, Total Nilai Risiko), filter status, dan modal pemusnahan barang (`WriteOffModal.tsx`) via ledger movement `DAMAGE_SPOILAGE` & audit log.
+- [x] **T4.04 Laporan Penjualan & Estimasi Laba Kotor**
   - Ref: `PRD.md` FR-RPT-01..03, AC-26..28
-  - Selesai bila: Menghitung omzet, jumlah transaksi, rata-rata keranjang, dan estimasi laba kotor (omzet - HPP rata-rata tertimbang).
-- [ ] **T4.05 Laporan Stok, Fast-Moving, dan Kinerja Sesi Kasir**
+  - Selesai: `ReportService.getSalesReport` menghitung omzet kotor, total diskon, refund retur, omzet bersih, jumlah transaksi, rata-rata keranjang (basket size), dan estimasi laba kotor & % margin. Ditampilkan di tab laporan `/reports`. Teruji di `tests/integration/services/reports.test.ts`.
+- [x] **T4.05 Laporan Stok, Fast-Moving, dan Kinerja Sesi Kasir**
   - Ref: `PRD.md` FR-RPT-04..06, AC-29, AC-30
-  - Selesai bila: Laporan menampilkan produk terlaris, produk di bawah stok minimum, dan rekonsiliasi kas per kasir per sesi.
-- [ ] **T4.06 Ekspor Laporan CSV**
+  - Selesai: `ReportService.getProductPerformance` (ranking produk terlaris), `getInventoryValuationReport` (status stok & valuasi total), dan `getCashierSessionsReport` (rekonsiliasi kas aktual vs diharapkan & selisih). Teruji di `tests/integration/services/reports.test.ts`.
+- [x] **T4.06 Ekspor Laporan CSV**
   - Ref: `PRD.md` FR-RPT-07, AC-31
-  - Selesai bila: Semua laporan dapat diunduh sebagai file CSV berformat UTF-8 dengan delimiter yang benar.
+  - Selesai: `ReportService.exportToCsv` mengekspor seluruh laporan tab aktif dengan header kolom rapi dan UTF-8 BOM (`\uFEFF`) agar kompatibel dibuka di Microsoft Excel.
 
 ---
 
-## Fase 5: Backup, Audit, Pengaturan & Hardening (BKP, AUD, SET)
+## Fase 5: Backup, Audit, Pengaturan & Hardening (BKP, AUD, SET) (Fase Aktif)
 
 - [ ] **T5.01 Backup Manual Terenkripsi/Validasi Checksum**
   - Ref: `PRD.md` FR-BKP-01..02, BR-28, AC-32
