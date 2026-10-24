@@ -102,36 +102,36 @@ Daftar tugas implementasi bertahap untuk SembakoOS. Mengikuti `AGENTS.md`, `PRD.
 
 ---
 
-## Fase 3: Inventaris & Pemasok (INV & SUP) (Fase Aktif)
+## Fase 3: Inventaris & Pemasok (INV & SUP) (Selesai 100%)
 
 - [x] **T3.01 InventoryService (Satu Pintu Ledger Stok)**
   - Ref: `ARCHITECTURE.md` §1, `DATABASE.md` §6, `PRD.md` BR-01, BR-04
   - Selesai: Satu pintu seluruh mutasi stok via `recordMovement`, immutable `stock_movements` & `stock_movement_items`, update `inventory_balances` atomik. Teruji di `tests/integration/services/checkout.test.ts`.
-- [ ] **T3.02 Kartu Stok & Riwayat Mutasi Produk**
+- [x] **T3.02 Kartu Stok & Riwayat Mutasi Produk**
   - Ref: `PRD.md` FR-INV-01, AC-18
-  - Selesai bila: Kartu stok menampilkan kronologi mutasi (masuk, keluar, saldo berjalan) dengan filter jenis referensi.
-- [ ] **T3.03 Penyesuaian Stok Manual (Penyesuaian Selisih/Rusak)**
+  - Selesai: `InventoryService.getStockCard` menghitung kronologi mutasi (masuk, keluar, saldo berjalan). `StockCardModal.tsx` menampilkan filter referensi, badge jenis mutasi, dan rincian transaksi terkait.
+- [x] **T3.03 Penyesuaian Stok Manual (Penyesuaian Selisih/Rusak)**
   - Ref: `PRD.md` FR-INV-02, BR-18, AC-19
-  - Selesai bila: Penyesuaian stok mencatat alasan wajib, memerlukan approval jika melampaui nilai ambang, dan menghasilkan movement koreksi.
-- [ ] **T3.04 Manajemen Pemasok (Data Supplier)**
+  - Selesai: `InventoryService.adjustStock` mewajibkan alasan, otorisasi PIN Supervisor bila melampaui batas ambang (Rp 100.000 atau 10 unit), dan menghasilkan `ADJUSTMENT_IN`/`ADJUSTMENT_OUT` movement. `StockAdjustmentModal.tsx` terintegrasi di UI. Teruji di `tests/integration/services/inventory-adjustment.test.ts`.
+- [x] **T3.04 Manajemen Pemasok (Data Supplier)**
   - Ref: `PRD.md` FR-SUP-01..02
-  - Selesai bila: CRUD pemasok (nama, kontak, alamat, termin pembayaran) berfungsi dengan validasi Zod.
-- [ ] **T3.05 Penerimaan Barang dari Pemasok (Goods Receipt)**
+  - Selesai: `SupplierService` (CRUD, soft archive `active = 0`, validasi Zod). `SupplierFormModal.tsx` dan `SuppliersView.tsx` halaman `/suppliers`. Teruji di `tests/integration/services/supplier-receipt.test.ts`.
+- [x] **T3.05 Penerimaan Barang dari Pemasok (Goods Receipt)**
   - Ref: `PRD.md` FR-SUP-03..05, BR-12, AC-20
-  - Selesai bila: Penerimaan mencatat nomor faktur pemasok, tanggal terima, barang, qty, biaya per unit, menghitung moving average cost, dan menambah saldo stok.
-- [ ] **T3.06 Sesi Stok Opname (Persiapan & Hitung Fisik)**
+  - Selesai: `GoodsReceiptService.createAndPostReceipt` atomik, mencatat nomor faktur & tanggal terima, menghitung moving weighted average cost (`cost_x10k`), update riwayat `price_history`, dan menambah saldo stok via movement `PURCHASE_RECEIPT`. Teruji di `tests/integration/services/supplier-receipt.test.ts`.
+- [x] **T3.06 Sesi Stok Opname (Persiapan & Hitung Fisik)**
   - Ref: `PRD.md` FR-INV-03, BR-19, AC-21
-  - Selesai bila: Sesi opname dapat dibuka untuk semua / sebagian kategori; input hitung fisik mendukung scan barcode berulang.
-- [ ] **T3.07 Review & Rekonsiliasi Stok Opname**
+  - Selesai: `StocktakeService.createSession` mendukung cakupan seluruh toko atau kategori tertentu, snapshot `system_qty_snapshot` otomatis, mode hitung blind/terlihat, input fisik multi-item. Teruji di `tests/integration/services/stocktake.test.ts`.
+- [x] **T3.07 Review & Rekonsiliasi Stok Opname**
   - Ref: `PRD.md` FR-INV-04, AC-22
-  - Selesai bila: Sistem menampilkan selisih (sistem vs fisik) dan nilai rupiah selisih sebelum posting.
-- [ ] **T3.08 Posting Stok Opname Atomik**
+  - Selesai: `StocktakeService.getReviewData` menghitung selisih kuantitas fisik vs sistem snapshot, total nilai selisih Rupiah, status selisih (`SURPLUS`, `DEFICIT`, `MATCH`), dan ringkasan opname.
+- [x] **T3.08 Posting Stok Opname Atomik**
   - Ref: `PRD.md` FR-INV-05, BR-20, AC-22
-  - Selesai bila: Posting membutuhkan approval Supervisor/Owner, membuat penyesuaian otomatis per produk berselisih, mengunci sesi opname.
+  - Selesai: `StocktakeService.postSession` mewajibkan otorisasi Supervisor/Owner, membuat penyesuaian otomatis per produk berselisih via `STOCKTAKE_ADJUSTMENT` movement, audit log, dan mengunci sesi opname status `COMPLETED`. Teruji di `tests/integration/services/stocktake.test.ts`.
 
 ---
 
-## Fase 4: Batch, Kedaluwarsa & Laporan (EXP & RPT)
+## Fase 4: Batch, Kedaluwarsa & Laporan (EXP & RPT) (Fase Aktif)
 
 - [ ] **T4.01 Manajemen Batch & Tanggal Kedaluwarsa**
   - Ref: `PRD.md` FR-EXP-01..03, BR-21..24, AC-23

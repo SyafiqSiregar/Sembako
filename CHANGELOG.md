@@ -4,6 +4,18 @@ Catatan seluruh perubahan, implementasi fitur, pembaruan skema, dan keputusan ar
 
 Format mengacu pada [Keep a Changelog](https://keepachangelog.com/id/1.0.0/).
 
+## [Fase 3: Inventaris & Pemasok] - 2026-10-25
+
+### Ditambahkan
+- Modul Kartu Stok: `InventoryService.getStockCard` menghitung kronologi mutasi (masuk, keluar, saldo berjalan) dengan filter jenis referensi dan modal visual `StockCardModal.tsx` (FR-INV-01, AC-18).
+- Modul Penyesuaian Stok Manual: `InventoryService.adjustStock` mewajibkan alasan, otorisasi PIN Supervisor bila selisih melampaui batas ambang (Rp 100.000 atau 10 unit), dan menghasilkan `ADJUSTMENT_IN`/`ADJUSTMENT_OUT` movement serta audit log (FR-INV-02, BR-18, AC-19).
+- Modul Manajemen Pemasok: `SupplierService` untuk CRUD data distributor/supplier dengan pengarsipan non-destruktif (`active = 0`), validasi Zod, form modal `SupplierFormModal.tsx`, dan halaman `/suppliers` (FR-SUP-01..02).
+- Modul Penerimaan Barang (Goods Receipt): `GoodsReceiptService.createAndPostReceipt` atomik, mencatat nomor faktur & tanggal terima, menghitung moving weighted average cost (`cost_x10k`), update riwayat `price_history`, dan menambah saldo stok via movement `PURCHASE_RECEIPT` (FR-SUP-03..05, BR-12, AC-20).
+- Modul Stok Opname Fisik: `StocktakeService` untuk pembuatan sesi opname bertarget (seluruh toko atau per kategori), snapshot kuantitas sistem otomatis `system_qty_snapshot`, mode hitung blind/terlihat, kalkulasi selisih & nilai rupiah (`getReviewData`), dan posting atomik via `STOCKTAKE_ADJUSTMENT` movement dengan otorisasi Supervisor/Owner (FR-INV-03..05, BR-19, BR-20, AC-21, AC-22).
+- Audit Konsistensi Ledger (INV-01): `InventoryService.reconcileStockLedger` untuk memverifikasi kesesuaian saldo fisik dengan akumulasi mutasi ledger.
+- 52 unit & integration tests Vitest (seluruhnya lulus hijau).
+- Verifikasi browser subagent pada halaman `/inventory` (audit konsistensi, kartu stok, modal stok opname) dan `/suppliers` (daftar pemasok, dialog tambah pemasok).
+
 ---
 
 ## [Fase 2: Kasir POS & Transaksi Penjualan] - 2026-10-25

@@ -5,6 +5,8 @@ import { DashboardView } from '@/features/dashboard/DashboardView';
 import { ProductCatalogView } from '@/features/catalog/ProductCatalogView';
 import { PosView } from '@/features/pos/PosView';
 import { TransactionHistoryView } from '@/features/transactions/TransactionHistoryView';
+import { InventoryView } from '@/features/inventory/InventoryView';
+import { SuppliersView } from '@/features/suppliers/SuppliersView';
 import { ComingSoonView } from '@/components/shared/ComingSoonView';
 
 export const App: React.FC = () => {
@@ -15,18 +17,12 @@ export const App: React.FC = () => {
           <Route path="/" element={<DashboardView />} />
           <Route path="/pos" element={<PosView />} />
           <Route path="/products" element={<ProductCatalogView />} />
-          <Route
-            path="/inventory"
-            element={<ComingSoonView moduleName="Inventaris" phase="Fase 3 (Inventaris & Pemasok)" />}
-          />
+          <Route path="/inventory" element={<InventoryView />} />
           <Route
             path="/expiry"
             element={<ComingSoonView moduleName="Kedaluwarsa" phase="Fase 4 (Batch & Kedaluwarsa)" />}
           />
-          <Route
-            path="/suppliers"
-            element={<ComingSoonView moduleName="Pemasok" phase="Fase 3 (Inventaris & Pemasok)" />}
-          />
+          <Route path="/suppliers" element={<SuppliersView />} />
           <Route path="/transactions" element={<TransactionHistoryView />} />
           <Route
             path="/reports"
