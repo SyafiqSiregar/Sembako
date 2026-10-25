@@ -4,6 +4,17 @@ Catatan seluruh perubahan, implementasi fitur, pembaruan skema, dan keputusan ar
 
 Format mengacu pada [Keep a Changelog](https://keepachangelog.com/id/1.0.0/).
 
+## [Penyempurnaan Dashboard, Panduan & Data Demo] - 2026-10-25
+
+### Ditambahkan
+- Dashboard Dinamis Terkoneksi Penuh: `DashboardView.tsx` terintegrasi langsung dengan IndexedDB Dexie, `ReportService`, `BatchService`, dan `CashierSessionService`. Menghitung omzet bersih, jumlah transaksi, estimasi laba kotor & margin, grafik area penjualan per jam SVG realtime, donut chart komposisi nilai persediaan per kategori, daftar produk perlu perhatian (stok kritis & batch kedaluwarsa sesuai AC-27), dan feed aktivitas mutasi stok & penjualan terbaru.
+- Pusat Panduan Operasional Sembako: `HelpView.tsx` menggantikan placeholder pada rute `/help`, menyediakan panduan komprehensif 5 tab interaktif (Alur Kasir POS & Hotkey, Inventaris Tunggal & Stok Opname BR-01/BR-24, Batch & FEFO, Cadangan Data & PWA Offline-First, serta Glosarium Istilah Baku Toko Sembako).
+- Seeder Data Demo Terverifikasi: `src/data/seedDemo.ts` dan script `pnpm seed:demo` sesuai `AGENTS.md` §3 Rule 3, memuat katalog sembako berlabel jelas (`[DEMO]`), pemasok, saldo awal via ledger `InventoryService`, batch kedaluwarsa, sesi kasir, dan transaksi penjualan contoh.
+- Unit Test Hak Akses Domain: `tests/unit/domain/permissions.test.ts` memverifikasi penegakan aturan hak akses Kasir, Supervisor, Owner, dan Petugas Gudang (AC-13, AC-20, AC-30).
+- 74 unit & integration tests Vitest (20 test files, 100% passed).
+
+---
+
 ## [Fase 5: Backup, Audit, Pengaturan & Hardening PWA] - 2026-10-25
 
 ### Ditambahkan

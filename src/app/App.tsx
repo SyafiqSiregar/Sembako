@@ -10,7 +10,7 @@ import { SuppliersView } from '@/features/suppliers/SuppliersView';
 import { ExpiryView } from '@/features/expiry/ExpiryView';
 import { ReportsView } from '@/features/reports/ReportsView';
 import { SettingsView } from '@/features/settings/SettingsView';
-import { ComingSoonView } from '@/components/shared/ComingSoonView';
+import { HelpView } from '@/features/help/HelpView';
 
 export const App: React.FC = () => {
   return (
@@ -26,10 +26,7 @@ export const App: React.FC = () => {
           <Route path="/transactions" element={<TransactionHistoryView />} />
           <Route path="/reports" element={<ReportsView />} />
           <Route path="/settings" element={<SettingsView />} />
-          <Route
-            path="/help"
-            element={<ComingSoonView moduleName="Bantuan" phase="Dokumentasi Sistem" />}
-          />
+          <Route path="/help" element={<HelpView />} />
         </Routes>
       </AppLayout>
     </BrowserRouter>
