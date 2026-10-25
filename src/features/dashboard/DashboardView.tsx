@@ -5,7 +5,7 @@ import { ReportService, type SalesReportSummary, type InventoryValuationItem } f
 import { BatchService } from '@/services/batch.service';
 import { InventoryService } from '@/services/inventory.service';
 import { CashierSessionService } from '@/services/session.service';
-import { formatRupiah } from '@/domain/money';
+import { formatRupiah, formatRupiahCompact } from '@/domain/money';
 import {
   TrendingUp,
   AlertTriangle,
@@ -369,7 +369,7 @@ export const DashboardView: React.FC = () => {
   }, [svgPathD]);
 
   // Donut chart stroke segments
-  const circumference = 2 * Math.PI * 38; // ≈ 238.76
+  const circumference = 2 * Math.PI * 41; // ≈ 257.61
 
   return (
     <div className="flex flex-col gap-6">
@@ -712,16 +712,16 @@ export const DashboardView: React.FC = () => {
             </div>
 
             {/* SVG Donut Chart */}
-            <div className="relative flex items-center justify-center size-44 mx-auto my-2">
+            <div className="relative flex items-center justify-center size-52 mx-auto my-3">
               <svg className="size-full -rotate-90" viewBox="0 0 100 100">
                 {/* Background Ring */}
                 <circle
                   cx="50"
                   cy="50"
-                  r="38"
+                  r="41"
                   fill="none"
                   stroke="#EFEBE4"
-                  strokeWidth="14"
+                  strokeWidth="9"
                 />
 
                 {/* Slices */}
@@ -735,10 +735,10 @@ export const DashboardView: React.FC = () => {
                           key={idx}
                           cx="50"
                           cy="50"
-                          r="38"
+                          r="41"
                           fill="none"
                           stroke={seg.color}
-                          strokeWidth="14"
+                          strokeWidth="9"
                           strokeDasharray={`${dashLength} ${circumference - dashLength}`}
                           strokeDashoffset={-accOffset}
                         />
@@ -749,12 +749,18 @@ export const DashboardView: React.FC = () => {
                   })()}
               </svg>
 
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-2">
-                <span className="font-serif font-bold text-lg text-foreground leading-tight">
-                  {formatRupiah(valuationData.totalValuation)}
-                </span>
-                <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider mt-0.5">
+              <div
+                className="absolute inset-0 flex flex-col items-center justify-center text-center p-3"
+                title={`Total Nilai Stok: ${formatRupiah(valuationData.totalValuation)}`}
+              >
+                <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mb-1">
                   Total Nilai Stok
+                </span>
+                <span className="font-serif font-bold text-2xl text-foreground tracking-tight leading-none tabular-nums">
+                  {formatRupiahCompact(valuationData.totalValuation)}
+                </span>
+                <span className="text-[10px] text-muted-foreground/80 font-medium tabular-nums mt-1.5">
+                  {formatRupiah(valuationData.totalValuation)}
                 </span>
               </div>
             </div>

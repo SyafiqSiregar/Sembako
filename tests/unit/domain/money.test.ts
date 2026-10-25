@@ -6,6 +6,7 @@ import {
   percentageBps,
   splitMoney,
   formatRupiah,
+  formatRupiahCompact,
   parseRupiah,
 } from '@/domain/money';
 
@@ -59,9 +60,18 @@ describe('Domain: Money (Integer Rupiah)', () => {
     expect(formatRupiah(0)).toContain('0');
   });
 
+  it('formatRupiahCompact memformat angka besar ke satuan ringkas M, Jt, Rb', () => {
+    expect(formatRupiahCompact(38935000)).toBe('Rp 38,9 Jt');
+    expect(formatRupiahCompact(1250000000)).toBe('Rp 1,3 M');
+    expect(formatRupiahCompact(250000)).toBe('Rp 250 Rb');
+    expect(formatRupiahCompact(1000000)).toBe('Rp 1 Jt');
+    expect(formatRupiahCompact(5000)).toContain('5.000');
+  });
+
   it('parseRupiah mengubah teks menjadi integer uang', () => {
     expect(parseRupiah('Rp 12.500')).toBe(12500);
     expect(parseRupiah('50000')).toBe(50000);
     expect(parseRupiah('')).toBe(0);
   });
 });
+

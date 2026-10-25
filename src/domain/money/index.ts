@@ -109,3 +109,28 @@ export function parseRupiah(input: string): Money {
   if (isNaN(parsed)) return 0;
   return assertMoney(parsed);
 }
+
+/**
+ * Format ringkas untuk grafik atau badge ruang sempit (misal Donut Chart).
+ * Contoh: 38935000 -> "Rp 38,9 Jt", 1250000000 -> "Rp 1,3 M", 250000 -> "Rp 250 Rb"
+ */
+export function formatRupiahCompact(amount: Money): string {
+  assertMoney(amount);
+  const abs = Math.abs(amount);
+  const sign = amount < 0 ? '-' : '';
+
+  if (abs >= 1_000_000_000) {
+    const val = (abs / 1_000_000_000).toFixed(1).replace('.', ',');
+    return `${sign}Rp ${val.endsWith(',0') ? val.slice(0, -2) : val} M`;
+  }
+  if (abs >= 1_000_000) {
+    const val = (abs / 1_000_000).toFixed(1).replace('.', ',');
+    return `${sign}Rp ${val.endsWith(',0') ? val.slice(0, -2) : val} Jt`;
+  }
+  if (abs >= 100_000) {
+    const val = (abs / 1_000).toFixed(0);
+    return `${sign}Rp ${val} Rb`;
+  }
+  return formatRupiah(amount);
+}
+

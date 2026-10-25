@@ -11,7 +11,7 @@ export const SyncStatusChip: React.FC<SyncStatusChipProps> = ({ status = 'saved_
   if (status === 'saving') {
     return (
       <div
-        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-pill bg-info text-info text-xs font-medium border border-border"
+        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-pill bg-info text-info-text text-xs font-semibold border border-info-text/20 shadow-sm"
         role="status"
         aria-live="polite"
       >
@@ -24,21 +24,22 @@ export const SyncStatusChip: React.FC<SyncStatusChipProps> = ({ status = 'saved_
   if (status === 'offline') {
     return (
       <div
-        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-pill bg-info text-info text-xs font-medium border border-border"
+        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-pill bg-info text-info-text text-xs font-semibold border border-info-text/20 shadow-sm"
         role="status"
       >
         <WifiOff className="w-3.5 h-3.5" />
-        <span>Offline: data tersimpan lokal</span>
+        <span>Mode Offline: Data Lokal</span>
       </div>
     );
   }
 
   return (
     <div
-      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-pill bg-success text-success text-xs font-medium border border-border"
+      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-pill bg-success text-success-text text-xs font-semibold border border-success-text/20 shadow-sm"
       role="status"
+      title="Data tersimpan 100% aman di IndexedDB perangkat ini"
     >
-      <HardDriveDownload className="w-3.5 h-3.5" />
+      <HardDriveDownload className="w-3.5 h-3.5 shrink-0" />
       <span>Tersimpan di perangkat</span>
     </div>
   );
