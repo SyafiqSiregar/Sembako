@@ -4,9 +4,9 @@ Daftar tugas implementasi bertahap untuk SembakoOS. Mengikuti `AGENTS.md`, `PRD.
 
 | Atribut | Nilai |
 | --- | --- |
-| Versi dokumen | 1.0 |
-| Tanggal | 24 Oktober 2026 |
-| Status | Fase 0 aktif |
+| Versi dokumen | 1.1 |
+| Tanggal | 25 Oktober 2026 |
+| Status | Fase 0–5 Selesai 100% & Terverifikasi (Penyempurnaan UI/UX Unified Card Selesai) |
 
 ---
 
@@ -182,4 +182,15 @@ Daftar tugas implementasi bertahap untuk SembakoOS. Mengikuti `AGENTS.md`, `PRD.
 ---
 
 ## Catatan Kemajuan
-- 2026-10-24: Dokumen `TASKS.md` dibuat. Memulai pengerjaan T0.01.
+- 2026-10-24: Inisialisasi proyek, arsitektur dasar, schema Dexie v1, domain money/quantity, dan layout ORBIT (Fase 0).
+- 2026-10-25 (Pagi): Implementasi Fase 1 (Auth PIN, sesi kasir, katalog produk & multi-satuan) dan Fase 2 (POS touchscreen, checkout atomik, struk, held carts, void, retur).
+- 2026-10-25 (Siang): Implementasi Fase 3 (Inventory ledger, stok opname blind/visible, pemasok & goods receipt), Fase 4 (Batch FEFO otomatis, expiry monitor, reports & CSV export), dan Fase 5 (Backup SHA-256, atomic restore, audit trail append-only, store settings, user management, PWA hardening).
+- 2026-10-25 (Sore):
+  - Dashboard live-query terintegrasi Dexie & modul bantuan operasional (`/help`).
+  - Perbaikan bug duplikasi header Ringkasan Toko pada sub-halaman.
+  - Pembersihan copy antislop: menghapus subtitle filler dan kode dokumen internal di seluruh halaman.
+  - Redesain Unified Card Layout: menyatukan search & filter toolbar langsung ke Card Header pada seluruh view tabel.
+  - Redesain halaman Pengaturan (`/settings`): segmented pill tabs, cards terpadu, dan token styling.
+  - Pembuatan dokumentasi `README.md` komprehensif dan push repositori ke GitHub (`https://github.com/SyafiqSiregar/Sembako.git`).
+  - Total 75 unit & integration tests lulus (100% green).
+
