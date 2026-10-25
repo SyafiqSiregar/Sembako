@@ -118,122 +118,123 @@ export const SuppliersView: React.FC = () => {
   const supplierMap = useMemo(() => new Map(suppliers.map((s) => [s.id, s.name])), [suppliers]);
 
   return (
-    <div className="flex-1 flex flex-col bg-[#FBF8F3] overflow-hidden select-none">
+    <div className="flex flex-col gap-6 select-none">
       {/* Toast */}
       {notification && (
         <div
           className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl shadow-lg font-medium text-xs flex items-center gap-2 animate-in slide-in-from-top-2 duration-200 ${
-            notification.type === 'success' ? 'bg-[#14463C] text-white' : 'bg-rose-600 text-white'
+            notification.type === 'success' ? 'bg-primary text-primary-foreground' : 'bg-destructive text-destructive-foreground'
           }`}
         >
           {notification.message}
         </div>
       )}
 
-      {/* Unified Tabs, Search & Action Toolbar */}
-      <div className="p-4 bg-white border-b border-stone-200 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3 flex-1">
-          {/* Tab Buttons */}
-          <div className="flex bg-stone-100 p-1 rounded-xl text-xs font-medium text-stone-600">
-            <button
-              onClick={() => {
-                setActiveTab('suppliers');
-                setSearchQuery('');
-              }}
-              className={`px-3.5 py-1.5 rounded-lg flex items-center gap-2 transition ${
-                activeTab === 'suppliers'
-                  ? 'bg-white text-stone-900 shadow-sm font-bold'
-                  : 'hover:text-stone-900'
-              }`}
-            >
-              <Building2 className="w-4 h-4" />
-              <span>Data Pemasok ({suppliers.filter((s) => s.active === 1).length})</span>
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab('receipts');
-                setSearchQuery('');
-              }}
-              className={`px-3.5 py-1.5 rounded-lg flex items-center gap-2 transition ${
-                activeTab === 'receipts'
-                  ? 'bg-white text-stone-900 shadow-sm font-bold'
-                  : 'hover:text-stone-900'
-              }`}
-            >
-              <Truck className="w-4 h-4" />
-              <span>Faktur Penerimaan ({receipts.length})</span>
-            </button>
+      {/* Unified Table Card */}
+      <div className="bg-card border border-border rounded-card shadow-sm overflow-hidden">
+        {/* Card Header Toolbar */}
+        <div className="p-4 border-b border-border flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-card">
+          <div className="flex flex-wrap items-center gap-3 flex-1">
+            {/* Tab Segmented Control */}
+            <div className="inline-flex p-1 bg-muted rounded-pill border border-border/40 text-xs font-medium">
+              <button
+                onClick={() => {
+                  setActiveTab('suppliers');
+                  setSearchQuery('');
+                }}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-pill transition-all ${
+                  activeTab === 'suppliers'
+                    ? 'bg-card text-foreground font-semibold shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Building2 className="size-3.5" />
+                <span>Data Pemasok ({suppliers.filter((s) => s.active === 1).length})</span>
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('receipts');
+                  setSearchQuery('');
+                }}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-pill transition-all ${
+                  activeTab === 'receipts'
+                    ? 'bg-card text-foreground font-semibold shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Truck className="size-3.5" />
+                <span>Faktur Penerimaan ({receipts.length})</span>
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative flex-1 sm:max-w-xs min-w-[200px]">
+              <Search className="size-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={
+                  activeTab === 'suppliers'
+                    ? 'Cari nama pemasok / PIC...'
+                    : 'Cari No. GR / Faktur...'
+                }
+                className="w-full h-9 pl-9 pr-3 bg-background border border-input rounded-pill text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
           </div>
 
-          {/* Search Input */}
-          <div className="relative w-full sm:w-64">
-            <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={
-                activeTab === 'suppliers'
-                  ? 'Cari nama pemasok / PIC...'
-                  : 'Cari No. GR / Faktur...'
-              }
-              className="w-full pl-9 pr-4 py-2 bg-stone-50 border border-stone-300 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#14463C]"
-            />
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+            {activeTab === 'suppliers' ? (
+              <button
+                onClick={() => {
+                  setEditingSupplier(null);
+                  setIsSupplierModalOpen(true);
+                }}
+                className="h-9 px-3.5 bg-primary text-primary-foreground text-xs font-semibold rounded-pill hover:bg-primary-hover flex items-center gap-1.5 transition-colors shadow-xs"
+              >
+                <Plus className="size-3.5" />
+                <span>Tambah Pemasok</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setIsReceiptModalOpen(true)}
+                disabled={suppliers.filter((s) => s.active === 1).length === 0}
+                className="h-9 px-3.5 bg-primary text-primary-foreground text-xs font-semibold rounded-pill hover:bg-primary-hover flex items-center gap-1.5 transition-colors shadow-xs disabled:opacity-50"
+              >
+                <Plus className="size-3.5" />
+                <span>Penerimaan Barang</span>
+              </button>
+            )}
+
+            <button
+              onClick={loadData}
+              className="size-9 rounded-pill border border-input bg-background hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors shadow-xs"
+              title="Segarkan Data"
+            >
+              <RotateCcw className="size-3.5" />
+            </button>
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2">
+        {/* Content Area directly inside Card */}
+        <div className="overflow-x-auto">
           {activeTab === 'suppliers' ? (
-            <button
-              onClick={() => {
-                setEditingSupplier(null);
-                setIsSupplierModalOpen(true);
-              }}
-              className="py-2 px-3.5 bg-[#14463C] text-white text-xs font-bold rounded-xl hover:bg-[#0F352E] flex items-center gap-1.5 transition shadow-sm"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Tambah Pemasok</span>
-            </button>
-          ) : (
-            <button
-              onClick={() => setIsReceiptModalOpen(true)}
-              disabled={suppliers.filter((s) => s.active === 1).length === 0}
-              className="py-2 px-3.5 bg-[#14463C] text-white text-xs font-bold rounded-xl hover:bg-[#0F352E] flex items-center gap-1.5 transition shadow-sm disabled:opacity-50"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Penerimaan Barang</span>
-            </button>
-          )}
-
-          <button
-            onClick={loadData}
-            className="p-2 border border-stone-300 rounded-xl hover:bg-stone-50 text-stone-700 transition"
-            title="Segarkan Data"
-          >
-            <RotateCcw className="w-4 h-4 text-stone-500" />
-          </button>
-        </div>
-      </div>
-
-      {/* Content Area */}
-      <div className="flex-1 p-6 overflow-y-auto">
-        {activeTab === 'suppliers' ? (
-          /* TAB 1: Data Pemasok */
-          <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
-            {loading ? (
-              <div className="p-12 text-center text-xs text-stone-500">Memuat data pemasok...</div>
+            /* TAB 1: Data Pemasok */
+            loading ? (
+              <div className="p-12 text-center text-xs text-muted-foreground">Memuat data pemasok...</div>
             ) : filteredSuppliers.length === 0 ? (
               <div className="p-12 text-center">
-                <Building2 className="w-12 h-12 stroke-[1.5] text-stone-300 mx-auto mb-2" />
-                <p className="text-sm font-semibold text-stone-700">Belum ada data pemasok</p>
-                <p className="text-xs text-stone-500 mt-0.5">
+                <Building2 className="size-12 stroke-[1.5] text-muted-foreground/40 mx-auto mb-2" />
+                <p className="text-sm font-semibold text-foreground">Belum ada data pemasok</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
                   Klik tombol "Tambah Pemasok" untuk mendaftarkan distributor sembako
                 </p>
               </div>
             ) : (
               <table className="w-full text-left text-xs">
-                <thead className="bg-stone-50 border-b border-stone-200 text-stone-500 uppercase tracking-wider font-semibold">
+                <thead className="bg-muted/60 border-b border-border text-muted-foreground uppercase tracking-wider font-semibold text-[11px]">
                   <tr>
                     <th className="px-5 py-3.5">Nama Pemasok</th>
                     <th className="px-4 py-3.5">Kontak (PIC)</th>
@@ -242,31 +243,31 @@ export const SuppliersView: React.FC = () => {
                     <th className="px-5 py-3.5 text-right">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-stone-100">
+                <tbody className="divide-y divide-border/60">
                   {filteredSuppliers.map((sup) => (
-                    <tr key={sup.id} className="hover:bg-stone-50/70 transition">
-                      <td className="px-5 py-3.5 font-bold text-stone-900">{sup.name}</td>
-                      <td className="px-4 py-3.5 text-stone-700">{sup.contact_name || '—'}</td>
-                      <td className="px-4 py-3.5 text-stone-600 font-mono">{sup.phone || '—'}</td>
-                      <td className="px-4 py-3.5 text-stone-600 truncate max-w-xs">{sup.address || '—'}</td>
+                    <tr key={sup.id} className="hover:bg-accent/40 transition-colors">
+                      <td className="px-5 py-3.5 font-bold text-foreground">{sup.name}</td>
+                      <td className="px-4 py-3.5 text-foreground/80">{sup.contact_name || '—'}</td>
+                      <td className="px-4 py-3.5 text-muted-foreground font-mono">{sup.phone || '—'}</td>
+                      <td className="px-4 py-3.5 text-muted-foreground truncate max-w-xs">{sup.address || '—'}</td>
                       <td className="px-5 py-3.5 text-right space-x-2">
                         <button
                           onClick={() => {
                             setEditingSupplier(sup);
                             setIsSupplierModalOpen(true);
                           }}
-                          className="px-2.5 py-1.5 rounded-lg border border-stone-200 hover:border-[#14463C] hover:text-[#14463C] text-stone-700 font-semibold transition"
+                          className="px-2.5 py-1 rounded-pill border border-border bg-card hover:bg-muted text-foreground text-xs font-semibold transition-colors"
                           title="Edit Data Pemasok"
                         >
-                          <Edit2 className="w-3.5 h-3.5 inline mr-1" />
+                          <Edit2 className="size-3 inline mr-1" />
                           Edit
                         </button>
                         <button
                           onClick={() => handleArchiveSupplier(sup)}
-                          className="px-2.5 py-1.5 rounded-lg border border-rose-200 bg-rose-50/40 hover:bg-rose-100 text-rose-700 font-semibold transition"
+                          className="px-2.5 py-1 rounded-pill border border-destructive/30 bg-destructive/10 hover:bg-destructive/20 text-destructive-text text-xs font-semibold transition-colors"
                           title="Arsipkan Pemasok"
                         >
-                          <Archive className="w-3.5 h-3.5 inline mr-1" />
+                          <Archive className="size-3 inline mr-1" />
                           Arsipkan
                         </button>
                       </td>
@@ -274,24 +275,22 @@ export const SuppliersView: React.FC = () => {
                   ))}
                 </tbody>
               </table>
-            )}
-          </div>
-        ) : (
-          /* TAB 2: Faktur Penerimaan Barang */
-          <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
-            {loading ? (
-              <div className="p-12 text-center text-xs text-stone-500">Memuat riwayat penerimaan...</div>
+            )
+          ) : (
+            /* TAB 2: Faktur Penerimaan Barang */
+            loading ? (
+              <div className="p-12 text-center text-xs text-muted-foreground">Memuat riwayat penerimaan...</div>
             ) : filteredReceipts.length === 0 ? (
               <div className="p-12 text-center">
-                <Truck className="w-12 h-12 stroke-[1.5] text-stone-300 mx-auto mb-2" />
-                <p className="text-sm font-semibold text-stone-700">Belum ada riwayat penerimaan barang</p>
-                <p className="text-xs text-stone-500 mt-0.5">
-                  Klik "Penerimaan Barang Baru" untuk mencatat pengiriman barang dari distributor
+                <Truck className="size-12 stroke-[1.5] text-muted-foreground/40 mx-auto mb-2" />
+                <p className="text-sm font-semibold text-foreground">Belum ada riwayat penerimaan barang</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Klik "Penerimaan Barang" untuk mencatat pengiriman barang dari distributor
                 </p>
               </div>
             ) : (
               <table className="w-full text-left text-xs">
-                <thead className="bg-stone-50 border-b border-stone-200 text-stone-500 uppercase tracking-wider font-semibold">
+                <thead className="bg-muted/60 border-b border-border text-muted-foreground uppercase tracking-wider font-semibold text-[11px]">
                   <tr>
                     <th className="px-5 py-3.5">No. Penerimaan</th>
                     <th className="px-4 py-3.5">Tanggal</th>
@@ -302,20 +301,20 @@ export const SuppliersView: React.FC = () => {
                     <th className="px-5 py-3.5 text-right">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-stone-100">
+                <tbody className="divide-y divide-border/60">
                   {filteredReceipts.map((r) => (
-                    <tr key={r.id} className="hover:bg-stone-50/70 transition">
-                      <td className="px-5 py-3.5 font-mono font-bold text-stone-900">{r.receipt_no}</td>
-                      <td className="px-4 py-3.5 text-stone-600">{r.received_date}</td>
-                      <td className="px-4 py-3.5 font-medium text-stone-800">
+                    <tr key={r.id} className="hover:bg-accent/40 transition-colors">
+                      <td className="px-5 py-3.5 font-mono font-bold text-foreground">{r.receipt_no}</td>
+                      <td className="px-4 py-3.5 text-muted-foreground">{r.received_date}</td>
+                      <td className="px-4 py-3.5 font-medium text-foreground">
                         {supplierMap.get(r.supplier_id) || 'Pemasok'}
                       </td>
-                      <td className="px-4 py-3.5 font-mono text-stone-600">{r.supplier_ref_no || '—'}</td>
-                      <td className="px-4 py-3.5 text-right font-bold font-mono text-stone-900">
+                      <td className="px-4 py-3.5 font-mono text-muted-foreground">{r.supplier_ref_no || '—'}</td>
+                      <td className="px-4 py-3.5 text-right font-bold font-mono text-foreground">
                         {formatRupiah(r.total_cost)}
                       </td>
                       <td className="px-4 py-3.5 text-center">
-                        <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-200">
+                        <span className="inline-block px-2.5 py-0.5 rounded-pill text-[10px] font-bold uppercase tracking-wider bg-success text-success-foreground border border-success/30">
                           Diposting
                         </span>
                       </td>
@@ -325,9 +324,9 @@ export const SuppliersView: React.FC = () => {
                             const detail = await receiptService.getReceiptDetail(r.id);
                             if (detail) setSelectedReceiptDetail(detail);
                           }}
-                          className="px-2.5 py-1.5 rounded-lg border border-stone-200 hover:border-[#14463C] hover:text-[#14463C] text-stone-700 font-semibold transition"
+                          className="px-2.5 py-1 rounded-pill border border-border bg-card hover:bg-muted text-foreground text-xs font-semibold transition-colors"
                         >
-                          <Eye className="w-3.5 h-3.5 inline mr-1" />
+                          <Eye className="size-3 inline mr-1" />
                           Rincian
                         </button>
                       </td>
@@ -335,9 +334,9 @@ export const SuppliersView: React.FC = () => {
                   ))}
                 </tbody>
               </table>
-            )}
-          </div>
-        )}
+            )
+          )}
+        </div>
       </div>
 
       {/* Supplier Modal */}

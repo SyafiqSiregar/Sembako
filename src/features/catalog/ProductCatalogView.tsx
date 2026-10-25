@@ -173,90 +173,90 @@ export const ProductCatalogView: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Unified Action & Filter Toolbar */}
-      <div className="bg-card border border-border rounded-card p-4 shadow-sm flex flex-col gap-3">
-        {/* Top Row: Search Input + Action Buttons */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          {/* Search Input */}
-          <div className="relative flex-1 sm:max-w-md">
-            <Search className="size-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari nama, SKU, atau barcode..."
-              className="w-full h-10 pl-10 pr-4 bg-background border border-input rounded-pill text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2 self-end sm:self-auto">
-            <button
-              type="button"
-              onClick={() => setIsCsvModalOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-pill bg-background border border-input text-xs font-semibold text-foreground hover:bg-muted transition-colors shadow-sm"
-            >
-              <UploadCloud className="size-3.5" />
-              <span>Impor CSV</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsCategoryModalOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-pill bg-background border border-input text-xs font-semibold text-foreground hover:bg-muted transition-colors shadow-sm"
-            >
-              <FolderPlus className="size-3.5" />
-              <span>Kategori</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleCreateNew}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-pill bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary-hover transition-colors shadow-sm"
-            >
-              <Plus className="size-4" />
-              <span>Tambah Produk</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Bottom Row: Category Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pt-2 border-t border-border/50">
-          <button
-            type="button"
-            onClick={() => setSelectedCategory('all')}
-            className={`px-3 py-1.5 rounded-pill text-xs font-semibold whitespace-nowrap transition-colors ${
-              selectedCategory === 'all'
-                ? 'bg-primary text-primary-foreground shadow-sm'
-                : 'bg-muted text-muted-foreground hover:bg-accent'
-            }`}
-          >
-            Semua ({products.length})
-          </button>
-
-          {categories.map((c) => {
-            const count = products.filter((p) => p.product.category_id === c.id).length;
-            const isSelected = selectedCategory === c.id;
-            return (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setSelectedCategory(c.id)}
-                className={`px-3 py-1.5 rounded-pill text-xs font-semibold whitespace-nowrap transition-colors ${
-                  isSelected
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'bg-muted text-muted-foreground hover:bg-accent'
-                }`}
-              >
-                {c.name} ({count})
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Products Table Card */}
+      {/* Unified Products Table Card */}
       <div className="bg-card border border-border rounded-card shadow-sm overflow-hidden">
+        {/* Card Header Toolbar */}
+        <div className="p-4 border-b border-border flex flex-col gap-3 bg-card">
+          {/* Top Row: Search Input + Action Buttons */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            {/* Search Input */}
+            <div className="relative flex-1 sm:max-w-md">
+              <Search className="size-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari nama, SKU, atau barcode..."
+                className="w-full h-9 pl-9 pr-3 bg-background border border-input rounded-pill text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsCsvModalOpen(true)}
+                className="h-9 px-3 rounded-pill bg-background border border-input text-xs font-semibold text-foreground hover:bg-muted transition-colors shadow-xs flex items-center gap-1.5"
+              >
+                <UploadCloud className="size-3.5 text-muted-foreground" />
+                <span>Impor CSV</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsCategoryModalOpen(true)}
+                className="h-9 px-3 rounded-pill bg-background border border-input text-xs font-semibold text-foreground hover:bg-muted transition-colors shadow-xs flex items-center gap-1.5"
+              >
+                <FolderPlus className="size-3.5 text-muted-foreground" />
+                <span>Kategori</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCreateNew}
+                className="h-9 px-3.5 rounded-pill bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary-hover transition-colors shadow-xs flex items-center gap-1.5"
+              >
+                <Plus className="size-3.5" />
+                <span>Tambah Produk</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Bottom Row: Category Filter Pills */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pt-1">
+            <button
+              type="button"
+              onClick={() => setSelectedCategory('all')}
+              className={`px-3 py-1 rounded-pill text-xs font-semibold whitespace-nowrap transition-colors ${
+                selectedCategory === 'all'
+                  ? 'bg-primary text-primary-foreground shadow-xs'
+                  : 'bg-muted text-muted-foreground hover:text-foreground hover:bg-accent'
+              }`}
+            >
+              Semua ({products.length})
+            </button>
+
+            {categories.map((c) => {
+              const count = products.filter((p) => p.product.category_id === c.id).length;
+              const isSelected = selectedCategory === c.id;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setSelectedCategory(c.id)}
+                  className={`px-3 py-1 rounded-pill text-xs font-semibold whitespace-nowrap transition-colors ${
+                    isSelected
+                      ? 'bg-primary text-primary-foreground shadow-xs'
+                      : 'bg-muted text-muted-foreground hover:text-foreground hover:bg-accent'
+                  }`}
+                >
+                  {c.name} ({count})
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {isLoading ? (
           <div className="p-12 flex flex-col items-center justify-center gap-3 text-muted-foreground">
             <Loader2 className="size-6 animate-spin text-primary" />

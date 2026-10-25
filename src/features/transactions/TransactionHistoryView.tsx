@@ -8,6 +8,7 @@ import {
   Eye,
   Undo2,
   Lock,
+  ChevronDown,
 } from 'lucide-react';
 import { db, type Sale, type SaleItem, type Payment } from '@/data/db';
 import { InventoryService } from '@/services/inventory.service';
@@ -260,101 +261,109 @@ export const TransactionHistoryView: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-[#FBF8F3] overflow-hidden">
+    <div className="flex flex-col gap-6 select-none">
       {/* Toast */}
       {notification && (
         <div
           className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl shadow-lg font-medium text-xs flex items-center gap-2 animate-in slide-in-from-top-2 duration-200 ${
-            notification.type === 'success' ? 'bg-[#14463C] text-white' : 'bg-rose-600 text-white'
+            notification.type === 'success' ? 'bg-primary text-primary-foreground' : 'bg-destructive text-destructive-foreground'
           }`}
         >
           {notification.message}
         </div>
       )}
 
-
-
-      {/* Filter Bar */}
-      <div className="p-4 bg-white border-b border-stone-200 flex flex-wrap items-center justify-between gap-3">
-        {/* Search Input */}
-        <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Cari No. Struk atau Kasir..."
-            className="w-full pl-9 pr-4 py-2 bg-stone-50 border border-stone-300 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#14463C]"
-          />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Filter Periode Tanggal */}
-          <div className="flex bg-stone-100 p-1 rounded-lg text-xs font-medium text-stone-600">
-            <button
-              onClick={() => setDateFilter('today')}
-              className={`px-3 py-1 rounded transition ${
-                dateFilter === 'today' ? 'bg-white text-stone-900 shadow-sm font-bold' : 'hover:text-stone-900'
-              }`}
-            >
-              Hari Ini
-            </button>
-            <button
-              onClick={() => setDateFilter('7days')}
-              className={`px-3 py-1 rounded transition ${
-                dateFilter === '7days' ? 'bg-white text-stone-900 shadow-sm font-bold' : 'hover:text-stone-900'
-              }`}
-            >
-              7 Hari
-            </button>
-            <button
-              onClick={() => setDateFilter('all')}
-              className={`px-3 py-1 rounded transition ${
-                dateFilter === 'all' ? 'bg-white text-stone-900 shadow-sm font-bold' : 'hover:text-stone-900'
-              }`}
-            >
-              Semua
-            </button>
+      {/* Unified Table Card */}
+      <div className="bg-card border border-border rounded-card shadow-sm overflow-hidden">
+        {/* Card Header Toolbar */}
+        <div className="p-4 border-b border-border flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-card">
+          {/* Search Input */}
+          <div className="relative flex-1 sm:max-w-xs min-w-[220px]">
+            <Search className="size-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cari No. Struk atau Kasir..."
+              className="w-full h-9 pl-9 pr-3 bg-background border border-input rounded-pill text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
           </div>
 
-          {/* Filter Status */}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="py-1.5 px-3 bg-stone-50 border border-stone-300 rounded-lg text-xs font-medium text-stone-700 focus:outline-none focus:ring-2 focus:ring-[#14463C]"
-          >
-            <option value="all">Semua Status</option>
-            <option value="completed">Selesai</option>
-            <option value="voided">Dibatalkan (Void)</option>
-            <option value="partially_returned">Retur Sebagian</option>
-            <option value="fully_returned">Retur Penuh</option>
-          </select>
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Filter Periode Tanggal */}
+            <div className="inline-flex p-1 bg-muted rounded-pill border border-border/40 text-xs font-medium">
+              <button
+                onClick={() => setDateFilter('today')}
+                className={`px-3 py-1 rounded-pill transition-all ${
+                  dateFilter === 'today'
+                    ? 'bg-card text-foreground font-semibold shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Hari Ini
+              </button>
+              <button
+                onClick={() => setDateFilter('7days')}
+                className={`px-3 py-1 rounded-pill transition-all ${
+                  dateFilter === '7days'
+                    ? 'bg-card text-foreground font-semibold shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                7 Hari
+              </button>
+              <button
+                onClick={() => setDateFilter('all')}
+                className={`px-3 py-1 rounded-pill transition-all ${
+                  dateFilter === 'all'
+                    ? 'bg-card text-foreground font-semibold shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Semua
+              </button>
+            </div>
+
+            {/* Filter Status */}
+            <div className="relative">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="h-9 pl-3 pr-8 bg-background border border-input rounded-pill text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-ring appearance-none cursor-pointer"
+              >
+                <option value="all">Semua Status</option>
+                <option value="completed">Selesai</option>
+                <option value="voided">Dibatalkan (Void)</option>
+                <option value="partially_returned">Retur Sebagian</option>
+                <option value="fully_returned">Retur Penuh</option>
+              </select>
+              <ChevronDown className="size-3.5 text-muted-foreground absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+
+            {/* Action Button */}
+            <button
+              onClick={loadTransactions}
+              className="size-9 rounded-pill border border-input bg-background hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors shadow-xs shrink-0"
+              title="Segarkan Data"
+            >
+              <RotateCcw className="size-3.5" />
+            </button>
+          </div>
         </div>
 
-        {/* Action Button */}
-        <button
-          onClick={loadTransactions}
-          className="px-3.5 py-2 rounded-xl border border-stone-300 hover:bg-stone-50 text-xs font-semibold text-stone-700 flex items-center gap-1.5 transition shrink-0"
-        >
-          <RotateCcw className="w-4 h-4 text-stone-500" />
-          <span>Segarkan Data</span>
-        </button>
-      </div>
-
-      {/* Table Area */}
-      <div className="flex-1 p-6 overflow-y-auto">
-        <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+        {/* Content Area directly inside Card */}
+        <div className="overflow-x-auto">
           {loading ? (
-            <div className="p-12 text-center text-xs text-stone-500">Memuat data transaksi...</div>
+            <div className="p-12 text-center text-xs text-muted-foreground">Memuat data transaksi...</div>
           ) : filteredTransactions.length === 0 ? (
             <div className="p-12 text-center">
-              <Receipt className="w-12 h-12 stroke-[1.5] text-stone-300 mx-auto mb-2" />
-              <p className="text-sm font-semibold text-stone-700">Tidak ada transaksi ditemukan</p>
-              <p className="text-xs text-stone-500 mt-0.5">Coba sesuaikan filter pencarian atau periode tanggal</p>
+              <Receipt className="size-12 stroke-[1.5] text-muted-foreground/40 mx-auto mb-2" />
+              <p className="text-sm font-semibold text-foreground">Tidak ada transaksi ditemukan</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Coba sesuaikan filter pencarian atau periode tanggal</p>
             </div>
           ) : (
             <table className="w-full text-left text-xs">
-              <thead className="bg-stone-50 border-b border-stone-200 text-stone-500 uppercase tracking-wider font-semibold">
+              <thead className="bg-muted/60 border-b border-border text-muted-foreground uppercase tracking-wider font-semibold text-[11px]">
                 <tr>
                   <th className="px-5 py-3.5">No. Struk</th>
                   <th className="px-4 py-3.5">Waktu Transaksi</th>
@@ -365,7 +374,7 @@ export const TransactionHistoryView: React.FC = () => {
                   <th className="px-5 py-3.5 text-right">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-100">
+              <tbody className="divide-y divide-border/60">
                 {filteredTransactions.map((t) => {
                   const dateStr = new Date(t.sale.completed_at).toLocaleString('id-ID', {
                     dateStyle: 'medium',
@@ -373,28 +382,28 @@ export const TransactionHistoryView: React.FC = () => {
                   });
 
                   return (
-                    <tr key={t.sale.id} className="hover:bg-stone-50/70 transition">
-                      <td className="px-5 py-3.5 font-mono font-bold text-stone-900">
+                    <tr key={t.sale.id} className="hover:bg-accent/40 transition-colors">
+                      <td className="px-5 py-3.5 font-mono font-bold text-foreground">
                         {t.sale.receipt_no}
                       </td>
-                      <td className="px-4 py-3.5 text-stone-600">{dateStr}</td>
-                      <td className="px-4 py-3.5 font-medium text-stone-800">{t.cashierName}</td>
+                      <td className="px-4 py-3.5 text-muted-foreground">{dateStr}</td>
+                      <td className="px-4 py-3.5 font-medium text-foreground">{t.cashierName}</td>
                       <td className="px-4 py-3.5">
-                        <span className="capitalize text-stone-600">
+                        <span className="capitalize text-muted-foreground">
                           {t.payment?.method === 'cash' ? 'Tunai' : 'Non-Tunai'}
                         </span>
                       </td>
-                      <td className="px-4 py-3.5 text-right font-bold text-stone-900">
+                      <td className="px-4 py-3.5 text-right font-bold font-mono text-foreground">
                         {formatRupiah(t.sale.total)}
                       </td>
                       <td className="px-4 py-3.5 text-center">
                         <span
-                          className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                          className={`inline-block px-2.5 py-0.5 rounded-pill text-[10px] font-bold uppercase tracking-wider ${
                             t.sale.status === 'completed'
-                              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                              ? 'bg-success text-success-foreground border border-success/30'
                               : t.sale.status === 'voided'
-                              ? 'bg-rose-50 text-rose-800 border border-rose-200'
-                              : 'bg-amber-50 text-amber-800 border border-amber-200'
+                              ? 'bg-destructive text-destructive-foreground border border-destructive/30'
+                              : 'bg-warning text-warning-foreground border border-warning/30'
                           }`}
                         >
                           {t.sale.status === 'completed'
@@ -409,10 +418,10 @@ export const TransactionHistoryView: React.FC = () => {
                       <td className="px-5 py-3.5 text-right space-x-2">
                         <button
                           onClick={() => handleOpenDetail(t.sale, t.cashierName)}
-                          className="px-2.5 py-1.5 rounded-lg border border-stone-200 hover:border-emerald-600 hover:text-[#14463C] text-stone-700 font-semibold transition"
+                          className="px-2.5 py-1 rounded-pill border border-border bg-card hover:bg-muted text-foreground text-xs font-semibold transition-colors"
                           title="Lihat Detail & Cetak Ulang"
                         >
-                          <Eye className="w-3.5 h-3.5 inline mr-1" />
+                          <Eye className="size-3 inline mr-1" />
                           Detail
                         </button>
 
@@ -425,14 +434,14 @@ export const TransactionHistoryView: React.FC = () => {
                                 setVoidReason('');
                                 setVoidError(null);
                               }}
-                              className="px-2.5 py-1.5 rounded-lg border border-rose-200 bg-rose-50/50 hover:bg-rose-100 text-rose-700 font-semibold transition"
+                              className="px-2.5 py-1 rounded-pill border border-destructive/30 bg-destructive/10 hover:bg-destructive/20 text-destructive-text text-xs font-semibold transition-colors"
                               title="Batalkan Transaksi (Void)"
                             >
                               Void
                             </button>
                             <button
                               onClick={() => handleOpenReturnModal(t.sale)}
-                              className="px-2.5 py-1.5 rounded-lg border border-amber-200 bg-amber-50/50 hover:bg-amber-100 text-amber-800 font-semibold transition"
+                              className="px-2.5 py-1 rounded-pill border border-warning/40 bg-warning/20 hover:bg-warning/30 text-warning-text text-xs font-semibold transition-colors"
                               title="Retur Barang"
                             >
                               Retur
