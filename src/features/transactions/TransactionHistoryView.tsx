@@ -274,14 +274,9 @@ export const TransactionHistoryView: React.FC = () => {
 
       {/* Header */}
       <div className="p-6 bg-white border-b border-stone-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-serif font-bold text-stone-900 tracking-tight">
-            Riwayat Penjualan & Transaksi
-          </h1>
-          <p className="text-xs text-stone-500 mt-1">
-            Daftar lengkap struk penjualan, cetak ulang, void pembatalan, dan retur barang
-          </p>
-        </div>
+        <h1 className="text-2xl font-serif font-bold text-stone-900 tracking-tight">
+          Riwayat Transaksi
+        </h1>
 
         <button
           onClick={loadTransactions}

@@ -25,16 +25,11 @@ export const SettingsView: React.FC = () => {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div>
-        <div className="flex items-center gap-2">
-          <Settings className="w-6 h-6 text-[#14463C]" />
-          <h1 className="text-xl font-bold text-stone-900 font-serif">
-            Pengaturan & Administrasi Sistem
-          </h1>
-        </div>
-        <p className="text-xs text-stone-500 mt-1">
-          Identitas toko, hak akses pengguna, backup terenkripsi, dan jejak audit (FR-SET-01..04, FR-BKP-01..04, FR-AUD-01..03)
-        </p>
+      <div className="flex items-center gap-2">
+        <Settings className="w-6 h-6 text-[#14463C]" />
+        <h1 className="text-xl font-bold text-stone-900 font-serif">
+          Pengaturan Sistem
+        </h1>
       </div>
 
       {/* Tabs */}

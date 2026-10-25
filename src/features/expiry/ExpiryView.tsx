@@ -102,16 +102,11 @@ export const ExpiryView: React.FC = () => {
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <CalendarClock className="w-6 h-6 text-[#14463C]" />
-            <h1 className="text-xl font-bold text-stone-900 font-serif">
-              Monitoring Batch & Kedaluwarsa
-            </h1>
-          </div>
-          <p className="text-xs text-stone-500 mt-1">
-            Peringatan H-30 s.d. H-1, pemblokiran penjualan batch kedaluwarsa, dan alokasi FEFO (FR-EXP-01..05)
-          </p>
+        <div className="flex items-center gap-2">
+          <CalendarClock className="w-6 h-6 text-[#14463C]" />
+          <h1 className="text-xl font-bold text-stone-900 font-serif">
+            Monitoring Kedaluwarsa
+          </h1>
         </div>
 
         <button

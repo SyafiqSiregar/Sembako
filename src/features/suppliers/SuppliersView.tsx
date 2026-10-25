@@ -132,14 +132,9 @@ export const SuppliersView: React.FC = () => {
 
       {/* Header */}
       <div className="p-6 bg-white border-b border-stone-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-serif font-bold text-stone-900 tracking-tight">
-            Pemasok & Penerimaan Barang
-          </h1>
-          <p className="text-xs text-stone-500 mt-1">
-            Manajemen distributor dan penerimaan stok gudang terintegrasi (FR-SUP-01..05)
-          </p>
-        </div>
+        <h1 className="text-2xl font-serif font-bold text-stone-900 tracking-tight">
+          Pemasok & Penerimaan
+        </h1>
 
         <div className="flex items-center gap-2">
           {activeTab === 'suppliers' ? (

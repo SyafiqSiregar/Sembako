@@ -24,14 +24,9 @@ export const HelpView: React.FC = () => {
           <div className="size-12 rounded-full bg-secondary flex items-center justify-center text-primary shrink-0">
             <BookOpen className="size-6" />
           </div>
-          <div>
-            <h1 className="font-serif font-bold text-2xl text-foreground">
-              Bantuan & Panduan Operasional SembakoOS
-            </h1>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Panduan lengkap tata cara penggunaan kasir, manajemen stok, alur kedaluwarsa, dan pencadangan data.
-            </p>
-          </div>
+          <h1 className="font-serif font-bold text-2xl text-foreground">
+            Pusat Bantuan
+          </h1>
         </div>
 
         {/* Tab Switcher */}

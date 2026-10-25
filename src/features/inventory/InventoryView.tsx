@@ -135,14 +135,9 @@ export const InventoryView: React.FC = () => {
 
       {/* Header */}
       <div className="p-6 bg-white border-b border-stone-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-serif font-bold text-stone-900 tracking-tight">
-            Inventaris & Saldo Stok Gabungan
-          </h1>
-          <p className="text-xs text-stone-500 mt-1">
-            Toko depan dan gudang adalah satu inventaris terpadu (FR-INV-01)
-          </p>
-        </div>
+        <h1 className="text-2xl font-serif font-bold text-stone-900 tracking-tight">
+          Inventaris & Stok
+        </h1>
 
         <div className="flex items-center gap-2">
           <button

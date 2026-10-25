@@ -54,23 +54,22 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
   const routeMetadata: Record<
     string,
-    { name: string; subtitle: string; icon: React.ComponentType<{ className?: string }> }
+    { name: string; icon: React.ComponentType<{ className?: string }> }
   > = {
-    '/': { name: 'Ringkasan', subtitle: 'Dasbor performa & aktivitas toko', icon: LayoutDashboard },
-    '/pos': { name: 'Kasir POS', subtitle: 'Transaksi penjualan & pemindaian barcode', icon: ScanBarcode },
-    '/products': { name: 'Katalog Produk', subtitle: 'Daftar komoditas, harga & satuan', icon: Package },
-    '/inventory': { name: 'Inventaris & Stok', subtitle: 'Saldo stok terpadu toko & gudang', icon: Boxes },
-    '/expiry': { name: 'Monitoring Kedaluwarsa', subtitle: 'Pelacakan batch FEFO & sisa hari', icon: CalendarClock },
-    '/suppliers': { name: 'Pemasok & Penerimaan', subtitle: 'Distributor & faktur barang masuk', icon: Truck },
-    '/transactions': { name: 'Riwayat Transaksi', subtitle: 'Daftar penjualan, struk & pembatalan', icon: ReceiptText },
-    '/reports': { name: 'Laporan & Analitik', subtitle: 'Kinerja penjualan, laba & valuasi', icon: BarChart3 },
-    '/settings': { name: 'Pengaturan Sistem', subtitle: 'Identitas toko, staf & cadangan data', icon: Settings },
-    '/help': { name: 'Pusat Bantuan', subtitle: 'Panduan operasional kasir & sistem', icon: HelpCircle },
+    '/': { name: 'Ringkasan', icon: LayoutDashboard },
+    '/pos': { name: 'Kasir POS', icon: ScanBarcode },
+    '/products': { name: 'Katalog Produk', icon: Package },
+    '/inventory': { name: 'Inventaris & Stok', icon: Boxes },
+    '/expiry': { name: 'Monitoring Kedaluwarsa', icon: CalendarClock },
+    '/suppliers': { name: 'Pemasok & Penerimaan', icon: Truck },
+    '/transactions': { name: 'Riwayat Transaksi', icon: ReceiptText },
+    '/reports': { name: 'Laporan & Analitik', icon: BarChart3 },
+    '/settings': { name: 'Pengaturan Sistem', icon: Settings },
+    '/help': { name: 'Pusat Bantuan', icon: HelpCircle },
   };
 
   const currentRoute = routeMetadata[location.pathname] || {
     name: 'SembakoOS',
-    subtitle: 'Kasir & Manajemen Stok',
     icon: Store,
   };
   const CurrentIcon = currentRoute.icon;
@@ -191,20 +190,15 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             <div className="size-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
               <CurrentIcon className="size-4" />
             </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <span className="font-serif font-bold text-base sm:text-lg text-foreground leading-tight">
-                  {currentRoute.name}
-                </span>
-                {isPos && (
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground">
-                    POS Aktif
-                  </span>
-                )}
-              </div>
-              <span className="text-[11px] text-muted-foreground leading-none hidden sm:inline">
-                {currentRoute.subtitle}
+            <div className="flex items-center gap-2">
+              <span className="font-serif font-bold text-base sm:text-lg text-foreground leading-tight">
+                {currentRoute.name}
               </span>
+              {isPos && (
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground">
+                  POS Aktif
+                </span>
+              )}
             </div>
           </div>
 

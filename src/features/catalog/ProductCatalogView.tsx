@@ -175,14 +175,9 @@ export const ProductCatalogView: React.FC = () => {
     <div className="flex flex-col gap-6">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="font-serif font-bold text-2xl sm:text-3xl text-foreground">
-            Katalog Produk
-          </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Daftar komoditas, harga jual, barcode, dan satuan produk toko Anda.
-          </p>
-        </div>
+        <h1 className="font-serif font-bold text-2xl sm:text-3xl text-foreground">
+          Katalog Produk
+        </h1>
 
         <div className="flex items-center gap-2">
           <button
