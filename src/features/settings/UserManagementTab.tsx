@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
+  Users,
   UserPlus,
   KeyRound,
   CheckCircle,
@@ -109,147 +110,161 @@ export const UserManagementTab: React.FC<UserManagementTabProps> = ({ settingsSe
     <div className="space-y-6">
       {notification && (
         <div
-          className={`p-3.5 rounded-xl border flex items-center justify-between text-xs font-semibold ${
+          className={`p-3.5 rounded-card border flex items-center justify-between text-xs font-semibold ${
             notification.type === 'success'
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-              : 'bg-rose-50 border-rose-200 text-rose-800'
+              ? 'bg-success/20 border-success/40 text-success-foreground'
+              : 'bg-destructive/20 border-destructive/40 text-destructive-foreground'
           }`}
         >
           <div className="flex items-center gap-2">
             {notification.type === 'success' ? (
-              <CheckCircle className="w-4 h-4 text-emerald-600" />
+              <CheckCircle className="size-4 text-emerald-600" />
             ) : (
-              <AlertTriangle className="w-4 h-4 text-rose-600" />
+              <AlertTriangle className="size-4 text-destructive-text" />
             )}
             <span>{notification.message}</span>
           </div>
-          <button onClick={() => setNotification(null)} className="text-stone-400 hover:text-stone-600">
-            Tutup
+          <button onClick={() => setNotification(null)} className="text-muted-foreground hover:text-foreground">
+            ✕
           </button>
         </div>
       )}
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-sm font-bold text-stone-900">Manajemen Pengguna & Hak Akses</h2>
-          <p className="text-xs text-stone-500">
-            Kelola akun staf kasir, supervisor, dan staf gudang dengan autentikasi PIN terenkripsi (FR-SET-04)
-          </p>
+      {/* Unified Users Table Card */}
+      <div className="bg-card border border-border rounded-card shadow-xs overflow-hidden">
+        {/* Card Header Toolbar */}
+        <div className="p-4 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card">
+          <div className="flex items-center gap-3">
+            <div className="size-9 rounded-pill bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <Users className="size-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-serif font-bold text-foreground">Daftar Pengguna & Akses</h2>
+                <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded-pill bg-muted text-muted-foreground border border-border/50">
+                  {users.length} akun
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Kelola staf kasir, supervisor, dan staf gudang dengan autentikasi PIN 6 digit.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setIsAddUserOpen(true)}
+            className="h-8 px-3.5 bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-semibold rounded-pill flex items-center gap-1.5 transition-colors shadow-xs shrink-0 self-start sm:self-auto"
+          >
+            <UserPlus className="size-3.5 text-emerald-300" />
+            <span>Tambah Pengguna</span>
+          </button>
         </div>
 
-        <button
-          onClick={() => setIsAddUserOpen(true)}
-          className="px-3.5 py-2 bg-[#14463C] hover:bg-[#0F352E] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition shadow-sm"
-        >
-          <UserPlus className="w-4 h-4 text-emerald-300" />
-          <span>Tambah Pengguna</span>
-        </button>
-      </div>
-
-      {/* Users Table */}
-      <div className="bg-white border border-stone-200 rounded-2xl overflow-hidden shadow-sm">
-        <table className="w-full text-left text-xs">
-          <thead className="bg-stone-50 border-b border-stone-200 text-stone-500 uppercase tracking-wider font-semibold">
-            <tr>
-              <th className="px-4 py-3">Nama Pengguna</th>
-              <th className="px-3 py-3">Peran</th>
-              <th className="px-3 py-3">Percobaan Gagal</th>
-              <th className="px-3 py-3 text-center">Status</th>
-              <th className="px-4 py-3 text-right">Aksi</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-stone-100">
-            {loading ? (
+        {/* Table Content */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-muted/60 border-b border-border text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-stone-400">
-                  Memuat daftar pengguna...
-                </td>
+                <th className="px-4 py-3">Nama Pengguna</th>
+                <th className="px-3 py-3">Peran</th>
+                <th className="px-3 py-3">Percobaan Gagal</th>
+                <th className="px-3 py-3 text-center">Status</th>
+                <th className="px-4 py-3 text-right">Aksi</th>
               </tr>
-            ) : users.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-stone-400">
-                  Tidak ada pengguna terdaftar.
-                </td>
-              </tr>
-            ) : (
-              users.map((u) => (
-                <tr key={u.id} className="hover:bg-stone-50/50">
-                  <td className="px-4 py-3 font-bold text-stone-900">{u.name}</td>
-                  <td className="px-3 py-3">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-stone-100 text-stone-800">
-                      {u.roleName}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3">
-                    {u.failedAttempts > 0 ? (
-                      <span className="text-rose-600 font-bold">{u.failedAttempts} kali</span>
-                    ) : (
-                      <span className="text-stone-400">0</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-3 text-center">
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        u.status === 'active'
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : 'bg-rose-100 text-rose-800'
-                      }`}
-                    >
-                      {u.status === 'active' ? 'Aktif' : 'Nonaktif'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => {
-                          setResetPinUserId(u.id);
-                          setNewResetPin('');
-                        }}
-                        className="px-2.5 py-1 rounded-lg border border-stone-200 hover:bg-stone-50 text-stone-700 text-xs font-semibold flex items-center gap-1 transition"
-                      >
-                        <KeyRound className="w-3.5 h-3.5 text-stone-500" />
-                        <span>Reset PIN</span>
-                      </button>
-
-                      <button
-                        onClick={() => handleToggleStatus(u)}
-                        className={`px-2.5 py-1 rounded-lg border text-xs font-semibold transition ${
-                          u.status === 'active'
-                            ? 'border-rose-200 hover:bg-rose-50 text-rose-700'
-                            : 'border-emerald-200 hover:bg-emerald-50 text-emerald-700'
-                        }`}
-                      >
-                        {u.status === 'active' ? 'Nonaktifkan' : 'Aktifkan'}
-                      </button>
-                    </div>
+            </thead>
+            <tbody className="divide-y divide-border/60">
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                    Memuat daftar pengguna...
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : users.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                    Tidak ada pengguna terdaftar.
+                  </td>
+                </tr>
+              ) : (
+                users.map((u) => (
+                  <tr key={u.id} className="hover:bg-muted/40 transition-colors">
+                    <td className="px-4 py-3 font-semibold text-foreground">{u.name}</td>
+                    <td className="px-3 py-3">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-pill text-[10px] font-semibold bg-muted text-foreground border border-border/60">
+                        {u.roleName}
+                      </span>
+                    </td>
+                    <td className="px-3 py-3 font-mono">
+                      {u.failedAttempts > 0 ? (
+                        <span className="text-destructive-text font-bold">{u.failedAttempts} kali</span>
+                      ) : (
+                        <span className="text-muted-foreground">0</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-3 text-center">
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-pill text-[10px] font-semibold border ${
+                          u.status === 'active'
+                            ? 'bg-success/20 border-success/40 text-success-foreground'
+                            : 'bg-destructive/20 border-destructive/40 text-destructive-foreground'
+                        }`}
+                      >
+                        {u.status === 'active' ? 'Aktif' : 'Nonaktif'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => {
+                            setResetPinUserId(u.id);
+                            setNewResetPin('');
+                          }}
+                          className="h-7 px-2.5 rounded-pill border border-border hover:bg-muted text-foreground text-xs font-medium flex items-center gap-1.5 transition-colors"
+                        >
+                          <KeyRound className="size-3 text-muted-foreground" />
+                          <span>Reset PIN</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleToggleStatus(u)}
+                          className={`h-7 px-2.5 rounded-pill border text-xs font-medium transition-colors ${
+                            u.status === 'active'
+                              ? 'border-destructive/30 hover:bg-destructive/10 text-destructive-foreground'
+                              : 'border-success/30 hover:bg-success/10 text-success-foreground'
+                          }`}
+                        >
+                          {u.status === 'active' ? 'Nonaktifkan' : 'Aktifkan'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Add User Modal */}
       {isAddUserOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/40 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl border border-stone-200 w-full max-w-md overflow-hidden p-6 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-stone-100">
-              <div className="flex items-center gap-2 text-stone-900 font-bold text-base">
-                <UserPlus className="w-5 h-5 text-[#14463C]" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-card rounded-card shadow-2xl border border-border w-full max-w-md overflow-hidden p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <div className="flex items-center gap-2 text-foreground font-serif font-bold text-base">
+                <UserPlus className="size-5 text-primary" />
                 <span>Tambah Pengguna Baru</span>
               </div>
               <button
                 onClick={() => setIsAddUserOpen(false)}
-                className="p-1 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100"
+                className="p-1 rounded-pill text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               >
-                <X className="w-5 h-5" />
+                <X className="size-4" />
               </button>
             </div>
 
             <form onSubmit={handleCreateUser} className="space-y-4 text-xs">
               <div>
-                <label className="block font-semibold text-stone-700 mb-1">
+                <label className="block font-semibold text-foreground uppercase tracking-wider mb-1.5 text-[11px]">
                   Nama Lengkap *
                 </label>
                 <input
@@ -257,19 +272,19 @@ export const UserManagementTab: React.FC<UserManagementTabProps> = ({ settingsSe
                   placeholder="Contoh: Budi Santoso"
                   value={newUserName}
                   onChange={(e) => setNewUserName(e.target.value)}
-                  className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-stone-900 focus:ring-2 focus:ring-[#14463C]"
+                  className="w-full h-9 px-3.5 bg-background border border-input rounded-pill text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   required
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-stone-700 mb-1">
+                <label className="block font-semibold text-foreground uppercase tracking-wider mb-1.5 text-[11px]">
                   Peran & Hak Akses *
                 </label>
                 <select
                   value={newUserRole}
                   onChange={(e) => setNewUserRole(e.target.value as any)}
-                  className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-stone-900 focus:ring-2 focus:ring-[#14463C]"
+                  className="w-full h-9 px-3.5 bg-background border border-input rounded-pill text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   <option value="cashier">Kasir (Transaksi POS, Buka/Tutup Kas)</option>
                   <option value="supervisor">Supervisor (Void, Retur, Approval Diskon & Stok)</option>
@@ -279,7 +294,7 @@ export const UserManagementTab: React.FC<UserManagementTabProps> = ({ settingsSe
               </div>
 
               <div>
-                <label className="block font-semibold text-stone-700 mb-1">
+                <label className="block font-semibold text-foreground uppercase tracking-wider mb-1.5 text-[11px]">
                   PIN Masuk (6 Digit Angka) *
                 </label>
                 <input
@@ -288,24 +303,24 @@ export const UserManagementTab: React.FC<UserManagementTabProps> = ({ settingsSe
                   placeholder="6 Digit PIN"
                   value={newUserPin}
                   onChange={(e) => setNewUserPin(e.target.value.replace(/\D/g, ''))}
-                  className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-stone-900 font-mono tracking-widest text-center text-sm focus:ring-2 focus:ring-[#14463C]"
+                  className="w-full h-9 px-3.5 bg-background border border-input rounded-pill text-foreground font-mono tracking-widest text-center text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   required
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-stone-100">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
                 <button
                   type="button"
                   onClick={() => setIsAddUserOpen(false)}
                   disabled={isSubmitting}
-                  className="px-4 py-2 rounded-xl border border-stone-300 hover:bg-stone-50 text-stone-700 font-semibold"
+                  className="h-8 px-4 rounded-pill border border-input hover:bg-muted text-foreground font-medium transition-colors"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 rounded-xl bg-[#14463C] hover:bg-[#0F352E] text-white font-bold flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+                  className="h-8 px-4 rounded-pill bg-primary hover:bg-primary-hover text-primary-foreground font-semibold flex items-center gap-1.5 shadow-xs transition-colors disabled:opacity-50"
                 >
                   {isSubmitting ? 'Menyimpan...' : 'Simpan Pengguna'}
                 </button>
@@ -317,24 +332,24 @@ export const UserManagementTab: React.FC<UserManagementTabProps> = ({ settingsSe
 
       {/* Reset PIN Modal */}
       {resetPinUserId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/40 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl border border-stone-200 w-full max-w-sm overflow-hidden p-6 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-stone-100">
-              <div className="flex items-center gap-2 text-stone-900 font-bold text-base">
-                <KeyRound className="w-5 h-5 text-[#14463C]" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-card rounded-card shadow-2xl border border-border w-full max-w-sm overflow-hidden p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <div className="flex items-center gap-2 text-foreground font-serif font-bold text-base">
+                <KeyRound className="size-5 text-primary" />
                 <span>Reset PIN Pengguna</span>
               </div>
               <button
                 onClick={() => setResetPinUserId(null)}
-                className="p-1 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100"
+                className="p-1 rounded-pill text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               >
-                <X className="w-5 h-5" />
+                <X className="size-4" />
               </button>
             </div>
 
             <form onSubmit={handleResetPin} className="space-y-4 text-xs">
               <div>
-                <label className="block font-semibold text-stone-700 mb-1">
+                <label className="block font-semibold text-foreground uppercase tracking-wider mb-1.5 text-[11px]">
                   Masukkan PIN Baru (6 Digit) *
                 </label>
                 <input
@@ -343,24 +358,24 @@ export const UserManagementTab: React.FC<UserManagementTabProps> = ({ settingsSe
                   placeholder="Contoh: 654321"
                   value={newResetPin}
                   onChange={(e) => setNewResetPin(e.target.value.replace(/\D/g, ''))}
-                  className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-stone-900 font-mono tracking-widest text-center text-sm focus:ring-2 focus:ring-[#14463C]"
+                  className="w-full h-9 px-3.5 bg-background border border-input rounded-pill text-foreground font-mono tracking-widest text-center text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   required
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-stone-100">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
                 <button
                   type="button"
                   onClick={() => setResetPinUserId(null)}
                   disabled={isSubmitting}
-                  className="px-4 py-2 rounded-xl border border-stone-300 hover:bg-stone-50 text-stone-700 font-semibold"
+                  className="h-8 px-4 rounded-pill border border-input hover:bg-muted text-foreground font-medium transition-colors"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting || newResetPin.length !== 6}
-                  className="px-4 py-2 rounded-xl bg-[#14463C] hover:bg-[#0F352E] text-white font-bold flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+                  className="h-8 px-4 rounded-pill bg-primary hover:bg-primary-hover text-primary-foreground font-semibold flex items-center gap-1.5 shadow-xs transition-colors disabled:opacity-50"
                 >
                   {isSubmitting ? 'Memperbarui...' : 'Simpan PIN Baru'}
                 </button>

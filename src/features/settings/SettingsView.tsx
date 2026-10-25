@@ -22,58 +22,58 @@ export const SettingsView: React.FC = () => {
   const auditService = useMemo(() => new AuditService(db), []);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="space-y-6">
+      {/* Segmented Tab Navigation */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        <div className="inline-flex p-1 bg-muted rounded-pill border border-border/40 text-xs font-medium">
+          <button
+            onClick={() => setActiveTab('store')}
+            className={`flex items-center gap-2 px-4 py-1.5 rounded-pill transition-all ${
+              activeTab === 'store'
+                ? 'bg-card text-foreground font-semibold shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Store className="size-3.5" />
+            <span>Identitas & Kebijakan</span>
+          </button>
 
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`flex items-center gap-2 px-4 py-1.5 rounded-pill transition-all ${
+              activeTab === 'users'
+                ? 'bg-card text-foreground font-semibold shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Users className="size-3.5" />
+            <span>Pengguna & Peran</span>
+          </button>
 
-      {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-stone-200 overflow-x-auto pb-1">
-        <button
-          onClick={() => setActiveTab('store')}
-          className={`py-2 px-3.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition ${
-            activeTab === 'store'
-              ? 'bg-[#14463C] text-white shadow-sm'
-              : 'text-stone-600 hover:bg-stone-100'
-          }`}
-        >
-          <Store className="w-4 h-4" />
-          <span>Identitas & Kebijakan Toko</span>
-        </button>
+          <button
+            onClick={() => setActiveTab('backup')}
+            className={`flex items-center gap-2 px-4 py-1.5 rounded-pill transition-all ${
+              activeTab === 'backup'
+                ? 'bg-card text-foreground font-semibold shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Database className="size-3.5" />
+            <span>Backup & Restore</span>
+          </button>
 
-        <button
-          onClick={() => setActiveTab('users')}
-          className={`py-2 px-3.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition ${
-            activeTab === 'users'
-              ? 'bg-[#14463C] text-white shadow-sm'
-              : 'text-stone-600 hover:bg-stone-100'
-          }`}
-        >
-          <Users className="w-4 h-4" />
-          <span>Pengguna & Peran</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('backup')}
-          className={`py-2 px-3.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition ${
-            activeTab === 'backup'
-              ? 'bg-[#14463C] text-white shadow-sm'
-              : 'text-stone-600 hover:bg-stone-100'
-          }`}
-        >
-          <Database className="w-4 h-4" />
-          <span>Backup & Restore</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('audit')}
-          className={`py-2 px-3.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition ${
-            activeTab === 'audit'
-              ? 'bg-[#14463C] text-white shadow-sm'
-              : 'text-stone-600 hover:bg-stone-100'
-          }`}
-        >
-          <ShieldAlert className="w-4 h-4" />
-          <span>Jejak Audit</span>
-        </button>
+          <button
+            onClick={() => setActiveTab('audit')}
+            className={`flex items-center gap-2 px-4 py-1.5 rounded-pill transition-all ${
+              activeTab === 'audit'
+                ? 'bg-card text-foreground font-semibold shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <ShieldAlert className="size-3.5" />
+            <span>Jejak Audit</span>
+          </button>
+        </div>
       </div>
 
       {/* Tab Panels */}

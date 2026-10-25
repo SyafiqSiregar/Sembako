@@ -118,56 +118,61 @@ export const BackupRestoreTab: React.FC<BackupRestoreTabProps> = ({ backupServic
       {/* Notification banner */}
       {notification && (
         <div
-          className={`p-4 rounded-xl border flex items-center justify-between text-xs font-semibold animate-fade-in ${
+          className={`p-3.5 rounded-card border flex items-center justify-between text-xs font-semibold animate-fade-in ${
             notification.type === 'success'
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-              : 'bg-rose-50 border-rose-200 text-rose-800'
+              ? 'bg-success/20 border-success/40 text-success-foreground'
+              : 'bg-destructive/20 border-destructive/40 text-destructive-foreground'
           }`}
         >
           <div className="flex items-center gap-2">
             {notification.type === 'success' ? (
-              <CheckCircle className="w-4 h-4 text-emerald-600" />
+              <CheckCircle className="size-4 text-emerald-600" />
             ) : (
-              <AlertTriangle className="w-4 h-4 text-rose-600" />
+              <AlertTriangle className="size-4 text-destructive-text" />
             )}
             <span>{notification.message}</span>
           </div>
-          <button onClick={() => setNotification(null)} className="text-stone-400 hover:text-stone-600">
-            Tutup
+          <button onClick={() => setNotification(null)} className="text-muted-foreground hover:text-foreground">
+            ✕
           </button>
         </div>
       )}
 
       {/* Action Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Backup Card */}
-        <div className="p-6 bg-white border border-stone-200 rounded-2xl shadow-sm space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-emerald-50 rounded-xl text-[#14463C]">
-              <Database className="w-6 h-6" />
+        <div className="p-5 bg-card border border-border rounded-card shadow-xs space-y-4 flex flex-col justify-between">
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="size-9 rounded-pill bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <Database className="size-4" />
+              </div>
+              <div>
+                <h2 className="text-sm font-serif font-bold text-foreground">Backup Database Manual</h2>
+                <p className="text-xs text-muted-foreground">
+                  Ekspor seluruh data IndexedDB lengkap dengan checksum SHA-256.
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-sm font-bold text-stone-900">Backup Database Manual</h2>
-              <p className="text-xs text-stone-500">
-                Ekspor seluruh tabel IndexedDB disertai metadata manifest dan SHA-256 checksum (FR-BKP-01, AC-32)
-              </p>
-            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Berkas JSON hasil ekspor dapat disimpan di flashdisk atau media penyimpanan luar sebagai arsip cadangan toko.
+            </p>
           </div>
 
           <div className="pt-2">
             <button
               onClick={handleBackupNow}
               disabled={loading}
-              className="w-full py-2.5 px-4 bg-[#14463C] hover:bg-[#0F352E] text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition shadow-sm disabled:opacity-50"
+              className="w-full h-9 px-4 bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-semibold rounded-pill flex items-center justify-center gap-2 transition-colors shadow-xs disabled:opacity-50"
             >
               {loading ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="size-3.5 animate-spin" />
                   <span>Membuat Berkas Backup...</span>
                 </>
               ) : (
                 <>
-                  <Download className="w-4 h-4 text-emerald-300" />
+                  <Download className="size-3.5 text-emerald-300" />
                   <span>Unduh Backup (.json)</span>
                 </>
               )}
@@ -176,22 +181,27 @@ export const BackupRestoreTab: React.FC<BackupRestoreTabProps> = ({ backupServic
         </div>
 
         {/* Restore Card */}
-        <div className="p-6 bg-white border border-stone-200 rounded-2xl shadow-sm space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-amber-50 rounded-xl text-amber-700">
-              <Upload className="w-6 h-6" />
+        <div className="p-5 bg-card border border-border rounded-card shadow-xs space-y-4 flex flex-col justify-between">
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="size-9 rounded-pill bg-amber-500/10 text-amber-700 flex items-center justify-center shrink-0">
+                <Upload className="size-4" />
+              </div>
+              <div>
+                <h2 className="text-sm font-serif font-bold text-foreground">Restore Database</h2>
+                <p className="text-xs text-muted-foreground">
+                  Validasi integritas checksum SHA-256 dan pemulihan data atomik.
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-sm font-bold text-stone-900">Restore Database</h2>
-              <p className="text-xs text-stone-500">
-                Validasi integritas checksum SHA-256 dan pemulihan data atomik (FR-BKP-03, AC-33)
-              </p>
-            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Pilih file cadangan JSON untuk memeriksa kelayakan data sebelum ditimpa ke penyimpanan lokal tablet.
+            </p>
           </div>
 
           <div className="pt-2">
-            <label className="w-full py-2.5 px-4 border border-stone-300 hover:border-amber-600 hover:bg-stone-50 text-stone-700 text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition cursor-pointer">
-              <Upload className="w-4 h-4 text-stone-500" />
+            <label className="w-full h-9 px-4 border border-input hover:bg-muted text-foreground text-xs font-semibold rounded-pill flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs">
+              <Upload className="size-3.5 text-muted-foreground" />
               <span>Pilih Berkas Backup (.json)</span>
               <input
                 type="file"
@@ -204,40 +214,40 @@ export const BackupRestoreTab: React.FC<BackupRestoreTabProps> = ({ backupServic
         </div>
       </div>
 
-      {/* Restore Preview & Confirmation Dialog */}
+      {/* Restore Preview & Confirmation Box */}
       {validationResult && validationResult.valid && validationResult.manifest && (
-        <div className="p-5 bg-amber-50/70 border border-amber-300 rounded-2xl space-y-3 animate-fade-in">
-          <div className="flex items-center gap-2 text-amber-800 font-bold text-xs uppercase tracking-wider">
-            <FileCheck className="w-4 h-4 text-amber-700" />
+        <div className="p-5 bg-amber-500/10 border border-amber-500/30 rounded-card space-y-3 animate-fade-in">
+          <div className="flex items-center gap-2 text-amber-900 font-bold text-xs uppercase tracking-wider">
+            <FileCheck className="size-4 text-amber-700" />
             <span>Validasi Berkas Backup Lolos (SHA-256 Cocok)</span>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-stone-700">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-foreground">
             <div>Aplikasi: <strong>{validationResult.manifest.app}</strong></div>
             <div>Versi: <strong>{validationResult.manifest.app_version}</strong></div>
             <div>Tanggal: <strong>{new Date(validationResult.manifest.created_at).toLocaleString('id-ID')}</strong></div>
             <div>Checksum: <strong className="font-mono text-[10px]">{validationResult.manifest.checksum_sha256.substring(0, 12)}...</strong></div>
           </div>
 
-          <div className="text-xs text-stone-600">
+          <div className="text-xs text-muted-foreground">
             Jumlah Record: {Object.entries(validationResult.manifest.table_counts).map(([tbl, cnt]) => `${tbl} (${cnt})`).join(', ')}
           </div>
 
-          <div className="pt-2 flex items-center justify-end gap-2">
+          <div className="pt-2 flex items-center justify-end gap-2 border-t border-amber-500/20">
             <button
               onClick={() => {
                 setSelectedFileContent(null);
                 setValidationResult(null);
               }}
-              className="px-3.5 py-1.5 rounded-xl border border-stone-300 hover:bg-stone-100 text-xs font-semibold text-stone-700 transition"
+              className="h-8 px-4 rounded-pill border border-input hover:bg-muted text-xs font-medium text-foreground transition-colors"
             >
               Batal
             </button>
             <button
               onClick={() => setShowConfirmRestore(true)}
-              className="px-4 py-1.5 rounded-xl bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-sm"
+              className="h-8 px-4 rounded-pill bg-destructive hover:bg-destructive/90 text-destructive-foreground text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs"
             >
-              <AlertTriangle className="w-4 h-4" />
+              <AlertTriangle className="size-3.5" />
               <span>Lanjutkan Restore Data</span>
             </button>
           </div>
@@ -246,27 +256,27 @@ export const BackupRestoreTab: React.FC<BackupRestoreTabProps> = ({ backupServic
 
       {/* Confirm Destructive Restore Modal */}
       {showConfirmRestore && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/40 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl border border-stone-200 w-full max-w-md overflow-hidden p-6 space-y-4">
-            <div className="flex items-center gap-3 text-rose-700">
-              <div className="p-2.5 bg-rose-100 rounded-xl">
-                <AlertTriangle className="w-6 h-6 text-rose-600" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-card rounded-card shadow-2xl border border-border w-full max-w-md overflow-hidden p-6 space-y-4">
+            <div className="flex items-center gap-3 text-destructive-foreground">
+              <div className="size-9 rounded-pill bg-destructive/15 flex items-center justify-center shrink-0">
+                <AlertTriangle className="size-5 text-destructive-text" />
               </div>
-              <h3 className="text-base font-bold text-stone-900">
+              <h3 className="text-base font-serif font-bold text-foreground">
                 Konfirmasi Restore Database
               </h3>
             </div>
 
-            <p className="text-xs text-stone-600 leading-relaxed">
-              <strong>PERINGATAN KERAS:</strong> Pemulihan database bersifat destruktif. Seluruh data transaksi, produk, dan stok saat ini akan <strong>ditimpa sepenuhnya</strong> oleh data dari berkas backup. Tindakan ini tidak dapat dibatalkan.
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              <strong className="text-foreground">Peringatan:</strong> Pemulihan database bersifat destruktif. Seluruh data transaksi, produk, dan saldo stok saat ini akan <strong>ditimpa sepenuhnya</strong> oleh data dari berkas backup. Tindakan ini tidak dapat dibatalkan.
             </p>
 
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-stone-100">
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
               <button
                 type="button"
                 onClick={() => setShowConfirmRestore(false)}
                 disabled={isRestoring}
-                className="px-4 py-2 rounded-xl border border-stone-300 hover:bg-stone-50 text-xs font-semibold text-stone-700 transition"
+                className="h-8 px-4 rounded-pill border border-input hover:bg-muted text-xs font-medium text-foreground transition-colors"
               >
                 Batal
               </button>
@@ -274,11 +284,11 @@ export const BackupRestoreTab: React.FC<BackupRestoreTabProps> = ({ backupServic
                 type="button"
                 onClick={handleExecuteRestore}
                 disabled={isRestoring}
-                className="px-4 py-2 rounded-xl bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-sm disabled:opacity-50"
+                className="h-8 px-4 rounded-pill bg-destructive hover:bg-destructive/90 text-destructive-foreground text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs disabled:opacity-50"
               >
                 {isRestoring ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="size-3.5 animate-spin" />
                     <span>Memulihkan Database...</span>
                   </>
                 ) : (
@@ -290,49 +300,54 @@ export const BackupRestoreTab: React.FC<BackupRestoreTabProps> = ({ backupServic
         </div>
       )}
 
-      {/* Backup History Table */}
-      <div className="bg-white border border-stone-200 rounded-2xl p-4 shadow-sm space-y-3">
-        <div className="flex items-center gap-2">
-          <History className="w-4 h-4 text-stone-500" />
-          <h3 className="text-xs font-bold text-stone-700 uppercase tracking-wider">
-            Riwayat Backup Berkas
-          </h3>
+      {/* Unified Backup History Table Card */}
+      <div className="bg-card border border-border rounded-card shadow-xs overflow-hidden">
+        <div className="p-4 border-b border-border flex items-center justify-between bg-card">
+          <div className="flex items-center gap-2">
+            <History className="size-4 text-muted-foreground" />
+            <h3 className="text-xs font-serif font-bold text-foreground">
+              Riwayat Berkas Backup
+            </h3>
+            <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded-pill bg-muted text-muted-foreground border border-border/50">
+              {history.length} arsip
+            </span>
+          </div>
         </div>
 
-        <div className="border border-stone-100 rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-stone-50 border-b border-stone-200 text-stone-500 uppercase tracking-wider font-semibold">
+            <thead className="bg-muted/60 border-b border-border text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
               <tr>
-                <th className="px-4 py-2.5">Nama Berkas</th>
-                <th className="px-3 py-2.5">Waktu</th>
-                <th className="px-3 py-2.5">Ukuran</th>
-                <th className="px-3 py-2.5">Checksum SHA-256</th>
-                <th className="px-4 py-2.5 text-center">Status</th>
+                <th className="px-4 py-3">Nama Berkas</th>
+                <th className="px-3 py-3">Waktu</th>
+                <th className="px-3 py-3">Ukuran</th>
+                <th className="px-3 py-3">Checksum SHA-256</th>
+                <th className="px-4 py-3 text-center">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-stone-100">
+            <tbody className="divide-y divide-border/60">
               {history.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-stone-400">
+                  <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
                     Belum ada riwayat backup tercatat.
                   </td>
                 </tr>
               ) : (
                 history.map((h) => (
-                  <tr key={h.id} className="hover:bg-stone-50/50">
-                    <td className="px-4 py-2.5 font-bold text-stone-900">{h.file_name}</td>
-                    <td className="px-3 py-2.5 text-stone-600">
+                  <tr key={h.id} className="hover:bg-muted/40 transition-colors">
+                    <td className="px-4 py-3 font-semibold text-foreground">{h.file_name}</td>
+                    <td className="px-3 py-3 text-muted-foreground font-mono text-[11px]">
                       {new Date(h.created_at).toLocaleString('id-ID')}
                     </td>
-                    <td className="px-3 py-2.5 text-stone-600">
+                    <td className="px-3 py-3 text-muted-foreground font-mono">
                       {h.size_bytes ? `${Math.round(h.size_bytes / 1024)} KB` : '-'}
                     </td>
-                    <td className="px-3 py-2.5 font-mono text-[10px] text-stone-500">
+                    <td className="px-3 py-3 font-mono text-[10px] text-muted-foreground">
                       {h.checksum_sha256?.substring(0, 16)}...
                     </td>
-                    <td className="px-4 py-2.5 text-center">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                        <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                    <td className="px-4 py-3 text-center">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-pill text-[10px] font-semibold bg-success/20 border border-success/40 text-success-foreground">
+                        <ShieldCheck className="size-3 text-emerald-600" />
                         <span>Sukses</span>
                       </span>
                     </td>
