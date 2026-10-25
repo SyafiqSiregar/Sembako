@@ -4,6 +4,21 @@ Catatan seluruh perubahan, implementasi fitur, pembaruan skema, dan keputusan ar
 
 Format mengacu pada [Keep a Changelog](https://keepachangelog.com/id/1.0.0/).
 
+## [Penyempurnaan UI/UX: Unified Card Layout & Desain Token] - 2026-10-25
+
+### Diubah
+- Redesain Unified Card Layout: Menghilangkan kesan menggantung (*floating toolbar*) dan menyatukan filter, pencarian, dan aksi langsung ke dalam Card Header Toolbar pada `ProductCatalogView.tsx`, `InventoryView.tsx`, `ExpiryView.tsx`, `SuppliersView.tsx`, `TransactionHistoryView.tsx`, dan `ReportsView.tsx`.
+- Redesain Halaman Pengaturan (`/settings`):
+  - Segmented Tab Navigation diubah menjadi pill control (`rounded-pill`, `bg-muted`, border halus).
+  - Menghilangkan pembungkus dobel padding (`p-6 max-w-7xl mx-auto`).
+  - `StoreSettingsTab`: Pembersihan kode acuan PRD mentah, formulir rapi terstruktur dalam `rounded-card`, tombol dan input konsisten dengan token desain.
+  - `UserManagementTab`: Penyatuan judul daftar pengguna, badge hitungan akun, dan tombol "+ Tambah Pengguna" ke dalam Card Header tabel. Status pengguna dan peran memakai badge pill semantik.
+  - `BackupRestoreTab`: Kartu aksi Backup & Restore terstruktur seragam dengan `rounded-card` dan tombol pill; tabel riwayat backup terintegrasi penuh.
+  - `AuditViewerTab`: Penggabungan kotak pencarian, dropdown filter aksi, dan tombol muat ulang ke dalam toolbar Card Header di atas tabel riwayat audit.
+- Eliminasi Kata Mubazir & Kode Internal: Menghapus label kode PRD seperti `(FR-SET-01..03)` dan `(FR-BKP-01, AC-32)` dari antarmuka pengguna sesuai panduan copy `/antislop-copywriting`.
+
+---
+
 ## [Penyempurnaan Dashboard, Panduan & Data Demo] - 2026-10-25
 
 ### Ditambahkan
