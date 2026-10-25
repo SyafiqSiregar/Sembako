@@ -13,8 +13,6 @@ import {
   HelpCircle,
   Bell,
   Lock,
-  ChevronDown,
-  Calendar,
   Store,
   DollarSign,
 } from 'lucide-react';
@@ -52,7 +50,30 @@ interface AppLayoutProps {
 
 export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const location = useLocation();
-  const [dateRange, setDateRange] = useState('Hari ini');
+  const isPos = location.pathname === '/pos';
+
+  const routeMetadata: Record<
+    string,
+    { name: string; subtitle: string; icon: React.ComponentType<{ className?: string }> }
+  > = {
+    '/': { name: 'Ringkasan', subtitle: 'Dasbor performa & aktivitas toko', icon: LayoutDashboard },
+    '/pos': { name: 'Kasir POS', subtitle: 'Transaksi penjualan & pemindaian barcode', icon: ScanBarcode },
+    '/products': { name: 'Katalog Produk', subtitle: 'Daftar komoditas, harga & satuan', icon: Package },
+    '/inventory': { name: 'Inventaris & Stok', subtitle: 'Saldo stok terpadu toko & gudang', icon: Boxes },
+    '/expiry': { name: 'Monitoring Kedaluwarsa', subtitle: 'Pelacakan batch FEFO & sisa hari', icon: CalendarClock },
+    '/suppliers': { name: 'Pemasok & Penerimaan', subtitle: 'Distributor & faktur barang masuk', icon: Truck },
+    '/transactions': { name: 'Riwayat Transaksi', subtitle: 'Daftar penjualan, struk & pembatalan', icon: ReceiptText },
+    '/reports': { name: 'Laporan & Analitik', subtitle: 'Kinerja penjualan, laba & valuasi', icon: BarChart3 },
+    '/settings': { name: 'Pengaturan Sistem', subtitle: 'Identitas toko, staf & cadangan data', icon: Settings },
+    '/help': { name: 'Pusat Bantuan', subtitle: 'Panduan operasional kasir & sistem', icon: HelpCircle },
+  };
+
+  const currentRoute = routeMetadata[location.pathname] || {
+    name: 'SembakoOS',
+    subtitle: 'Kasir & Manajemen Stok',
+    icon: Store,
+  };
+  const CurrentIcon = currentRoute.icon;
   const [sessionModalOpen, setSessionModalOpen] = useState(false);
   const [sessionModalMode, setSessionModalMode] = useState<'open' | 'close'>('open');
 
@@ -163,31 +184,32 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
       {/* Area Konten Utama */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Top Header Bar */}
-        <header className="h-20 bg-background border-b border-border flex items-center justify-between px-8 flex-shrink-0">
-          <div>
-            <h1 className="font-serif font-semibold text-2xl text-foreground">
-              Ringkasan Toko
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              Gambaran penjualan, perputaran stok, dan aktivitas toko Anda.
-            </p>
+        {/* Top Header Bar (Harmonis & Kontekstual) */}
+        <header className="h-16 bg-background border-b border-border flex items-center justify-between px-6 sm:px-8 flex-shrink-0">
+          {/* Konteks Halaman Aktif */}
+          <div className="flex items-center gap-3">
+            <div className="size-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <CurrentIcon className="size-4" />
+            </div>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <span className="font-serif font-bold text-base sm:text-lg text-foreground leading-tight">
+                  {currentRoute.name}
+                </span>
+                {isPos && (
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground">
+                    POS Aktif
+                  </span>
+                )}
+              </div>
+              <span className="text-[11px] text-muted-foreground leading-none hidden sm:inline">
+                {currentRoute.subtitle}
+              </span>
+            </div>
           </div>
 
+          {/* Global Header Actions */}
           <div className="flex items-center gap-3">
-            {/* Pemilih Rentang Tanggal */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setDateRange(dateRange === 'Hari ini' ? 'Bulan ini' : 'Hari ini')}
-                className="flex items-center gap-2 px-3.5 py-2 bg-card border border-input rounded-pill text-xs font-medium text-foreground hover:bg-muted transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <Calendar className="size-3.5 text-muted-foreground" />
-                <span>{dateRange}: 24 Okt 2026</span>
-                <ChevronDown className="size-3 text-muted-foreground" />
-              </button>
-            </div>
-
             {/* Status Sesi Kasir Button */}
             <button
               type="button"
@@ -208,12 +230,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             {/* Tombol Notifikasi */}
             <button
               type="button"
-              className="relative size-10 rounded-full bg-card border border-input flex items-center justify-center text-foreground hover:bg-muted transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="relative size-9 rounded-full bg-card border border-input flex items-center justify-center text-foreground hover:bg-muted transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
               title="Notifikasi"
               aria-label="Notifikasi sistem"
             >
               <Bell className="size-4" />
-              <span className="absolute top-2 right-2 size-2 rounded-full bg-destructive-text" />
+              <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-destructive-text" />
             </button>
 
             {/* Profil Kasir & Tombol Kunci Layar */}
@@ -245,11 +267,15 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           </div>
         </header>
 
-        {/* Konten Scrollable */}
-        <main className="flex-1 overflow-y-auto p-8">
-          <div className="max-w-7xl mx-auto">
-            {children}
-          </div>
+        {/* Konten Scrollable: POS full-bleed, Halaman lain dengan max-w & padding proporsional */}
+        <main className={`flex-1 ${isPos ? 'overflow-hidden p-0' : 'overflow-y-auto p-6 sm:p-8'}`}>
+          {isPos ? (
+            children
+          ) : (
+            <div className="max-w-7xl mx-auto">
+              {children}
+            </div>
+          )}
         </main>
       </div>
 
