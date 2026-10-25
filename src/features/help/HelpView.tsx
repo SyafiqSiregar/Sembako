@@ -18,15 +18,11 @@ export const HelpView: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 max-w-5xl mx-auto">
-      {/* Header Banner */}
-      <div className="bg-card border border-border rounded-card p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="size-12 rounded-full bg-secondary flex items-center justify-center text-primary shrink-0">
-            <BookOpen className="size-6" />
-          </div>
-          <h1 className="font-serif font-bold text-2xl text-foreground">
-            Pusat Bantuan
-          </h1>
+      {/* Topic Switcher Card */}
+      <div className="bg-card border border-border rounded-card p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+          <BookOpen className="size-4 text-primary" />
+          <span>Pilih Topik Panduan:</span>
         </div>
 
         {/* Tab Switcher */}

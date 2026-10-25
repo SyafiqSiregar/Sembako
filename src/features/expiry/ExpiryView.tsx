@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  CalendarClock,
   Search,
   AlertTriangle,
   AlertOctagon,
@@ -100,23 +99,7 @@ export const ExpiryView: React.FC = () => {
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <CalendarClock className="w-6 h-6 text-[#14463C]" />
-          <h1 className="text-xl font-bold text-stone-900 font-serif">
-            Monitoring Kedaluwarsa
-          </h1>
-        </div>
 
-        <button
-          onClick={loadData}
-          className="px-3.5 py-2 rounded-xl border border-stone-300 hover:bg-stone-50 text-xs font-semibold text-stone-700 flex items-center gap-2 transition"
-        >
-          <RotateCcw className="w-4 h-4 text-stone-500" />
-          <span>Muat Ulang</span>
-        </button>
-      </div>
 
       {/* Metric Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -188,15 +171,25 @@ export const ExpiryView: React.FC = () => {
       {/* Filters & Search */}
       <div className="bg-white border border-stone-200 rounded-2xl p-4 shadow-sm space-y-3">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="relative flex-1 max-w-md">
-            <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Cari nama produk atau kode batch..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:ring-2 focus:ring-[#14463C]"
-            />
+          <div className="flex items-center gap-2 flex-1 max-w-lg">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Cari nama produk atau kode batch..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:ring-2 focus:ring-[#14463C]"
+              />
+            </div>
+            <button
+              onClick={loadData}
+              className="px-3 py-2 rounded-xl border border-stone-300 hover:bg-stone-50 text-xs font-semibold text-stone-700 flex items-center gap-1.5 transition shrink-0"
+              title="Segarkan data batch"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-stone-500" />
+              <span>Muat Ulang</span>
+            </button>
           </div>
 
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">

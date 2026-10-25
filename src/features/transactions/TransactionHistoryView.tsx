@@ -272,20 +272,7 @@ export const TransactionHistoryView: React.FC = () => {
         </div>
       )}
 
-      {/* Header */}
-      <div className="p-6 bg-white border-b border-stone-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <h1 className="text-2xl font-serif font-bold text-stone-900 tracking-tight">
-          Riwayat Transaksi
-        </h1>
 
-        <button
-          onClick={loadTransactions}
-          className="px-3.5 py-2 rounded-xl border border-stone-300 hover:bg-stone-50 text-xs font-semibold text-stone-700 flex items-center gap-2 transition"
-        >
-          <RotateCcw className="w-4 h-4 text-stone-500" />
-          Segarkan Data
-        </button>
-      </div>
 
       {/* Filter Bar */}
       <div className="p-4 bg-white border-b border-stone-200 flex flex-wrap items-center justify-between gap-3">
@@ -343,6 +330,15 @@ export const TransactionHistoryView: React.FC = () => {
             <option value="fully_returned">Retur Penuh</option>
           </select>
         </div>
+
+        {/* Action Button */}
+        <button
+          onClick={loadTransactions}
+          className="px-3.5 py-2 rounded-xl border border-stone-300 hover:bg-stone-50 text-xs font-semibold text-stone-700 flex items-center gap-1.5 transition shrink-0"
+        >
+          <RotateCcw className="w-4 h-4 text-stone-500" />
+          <span>Segarkan Data</span>
+        </button>
       </div>
 
       {/* Table Area */}

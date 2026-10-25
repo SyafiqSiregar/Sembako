@@ -130,12 +130,59 @@ export const SuppliersView: React.FC = () => {
         </div>
       )}
 
-      {/* Header */}
-      <div className="p-6 bg-white border-b border-stone-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <h1 className="text-2xl font-serif font-bold text-stone-900 tracking-tight">
-          Pemasok & Penerimaan
-        </h1>
+      {/* Unified Tabs, Search & Action Toolbar */}
+      <div className="p-4 bg-white border-b border-stone-200 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3 flex-1">
+          {/* Tab Buttons */}
+          <div className="flex bg-stone-100 p-1 rounded-xl text-xs font-medium text-stone-600">
+            <button
+              onClick={() => {
+                setActiveTab('suppliers');
+                setSearchQuery('');
+              }}
+              className={`px-3.5 py-1.5 rounded-lg flex items-center gap-2 transition ${
+                activeTab === 'suppliers'
+                  ? 'bg-white text-stone-900 shadow-sm font-bold'
+                  : 'hover:text-stone-900'
+              }`}
+            >
+              <Building2 className="w-4 h-4" />
+              <span>Data Pemasok ({suppliers.filter((s) => s.active === 1).length})</span>
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('receipts');
+                setSearchQuery('');
+              }}
+              className={`px-3.5 py-1.5 rounded-lg flex items-center gap-2 transition ${
+                activeTab === 'receipts'
+                  ? 'bg-white text-stone-900 shadow-sm font-bold'
+                  : 'hover:text-stone-900'
+              }`}
+            >
+              <Truck className="w-4 h-4" />
+              <span>Faktur Penerimaan ({receipts.length})</span>
+            </button>
+          </div>
 
+          {/* Search Input */}
+          <div className="relative w-full sm:w-64">
+            <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={
+                activeTab === 'suppliers'
+                  ? 'Cari nama pemasok / PIC...'
+                  : 'Cari No. GR / Faktur...'
+              }
+              className="w-full pl-9 pr-4 py-2 bg-stone-50 border border-stone-300 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#14463C]"
+            />
+          </div>
+        </div>
+
+        {/* Action Buttons */}
         <div className="flex items-center gap-2">
           {activeTab === 'suppliers' ? (
             <button
@@ -143,80 +190,29 @@ export const SuppliersView: React.FC = () => {
                 setEditingSupplier(null);
                 setIsSupplierModalOpen(true);
               }}
-              className="py-2.5 px-4 bg-[#14463C] text-white text-xs font-bold rounded-xl hover:bg-[#0F352E] flex items-center gap-1.5 transition shadow-sm"
+              className="py-2 px-3.5 bg-[#14463C] text-white text-xs font-bold rounded-xl hover:bg-[#0F352E] flex items-center gap-1.5 transition shadow-sm"
             >
               <Plus className="w-4 h-4" />
-              Tambah Pemasok
+              <span>Tambah Pemasok</span>
             </button>
           ) : (
             <button
               onClick={() => setIsReceiptModalOpen(true)}
               disabled={suppliers.filter((s) => s.active === 1).length === 0}
-              className="py-2.5 px-4 bg-[#14463C] text-white text-xs font-bold rounded-xl hover:bg-[#0F352E] flex items-center gap-1.5 transition shadow-sm disabled:opacity-50"
+              className="py-2 px-3.5 bg-[#14463C] text-white text-xs font-bold rounded-xl hover:bg-[#0F352E] flex items-center gap-1.5 transition shadow-sm disabled:opacity-50"
             >
               <Plus className="w-4 h-4" />
-              Penerimaan Barang Baru
+              <span>Penerimaan Barang</span>
             </button>
           )}
 
           <button
             onClick={loadData}
-            className="p-2.5 border border-stone-300 rounded-xl hover:bg-stone-50 text-stone-700 transition"
+            className="p-2 border border-stone-300 rounded-xl hover:bg-stone-50 text-stone-700 transition"
             title="Segarkan Data"
           >
             <RotateCcw className="w-4 h-4 text-stone-500" />
           </button>
-        </div>
-      </div>
-
-      {/* Tabs & Search Header */}
-      <div className="p-4 bg-white border-b border-stone-200 flex flex-wrap items-center justify-between gap-3">
-        {/* Tab Buttons */}
-        <div className="flex bg-stone-100 p-1 rounded-xl text-xs font-medium text-stone-600">
-          <button
-            onClick={() => {
-              setActiveTab('suppliers');
-              setSearchQuery('');
-            }}
-            className={`px-4 py-2 rounded-lg flex items-center gap-2 transition ${
-              activeTab === 'suppliers'
-                ? 'bg-white text-stone-900 shadow-sm font-bold'
-                : 'hover:text-stone-900'
-            }`}
-          >
-            <Building2 className="w-4 h-4" />
-            Data Pemasok ({suppliers.filter((s) => s.active === 1).length})
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab('receipts');
-              setSearchQuery('');
-            }}
-            className={`px-4 py-2 rounded-lg flex items-center gap-2 transition ${
-              activeTab === 'receipts'
-                ? 'bg-white text-stone-900 shadow-sm font-bold'
-                : 'hover:text-stone-900'
-            }`}
-          >
-            <Truck className="w-4 h-4" />
-            Faktur Penerimaan ({receipts.length})
-          </button>
-        </div>
-
-        {/* Search Input */}
-        <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={
-              activeTab === 'suppliers'
-                ? 'Cari nama pemasok / PIC...'
-                : 'Cari No. GR / Faktur...'
-            }
-            className="w-full pl-9 pr-4 py-2 bg-stone-50 border border-stone-300 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#14463C]"
-          />
         </div>
       </div>
 

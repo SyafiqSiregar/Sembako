@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  BarChart3,
   TrendingUp,
   DollarSign,
   Package,
@@ -153,15 +152,8 @@ export const ReportsView: React.FC = () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <BarChart3 className="w-6 h-6 text-[#14463C]" />
-          <h1 className="text-xl font-bold text-stone-900 font-serif">
-            Laporan & Analitik
-          </h1>
-        </div>
-
+      {/* Report Controls Toolbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
         <div className="flex items-center gap-2">
           {/* Preset buttons */}
           <div className="flex items-center bg-stone-100 p-1 rounded-xl text-xs font-semibold text-stone-600">
@@ -198,15 +190,15 @@ export const ReportsView: React.FC = () => {
               Semua
             </button>
           </div>
-
-          <button
-            onClick={handleExportCsv}
-            className="px-3.5 py-2 rounded-xl bg-[#14463C] text-white hover:bg-[#0F352E] text-xs font-bold flex items-center gap-1.5 transition shadow-sm"
-          >
-            <Download className="w-4 h-4 text-emerald-300" />
-            <span>Ekspor CSV</span>
-          </button>
         </div>
+
+        <button
+          onClick={handleExportCsv}
+          className="px-3.5 py-2 rounded-xl bg-[#14463C] text-white hover:bg-[#0F352E] text-xs font-bold flex items-center gap-1.5 transition shadow-sm self-end sm:self-auto"
+        >
+          <Download className="w-4 h-4 text-emerald-300" />
+          <span>Ekspor CSV</span>
+        </button>
       </div>
 
       {/* Metric Cards Banner (Sales Summary) */}

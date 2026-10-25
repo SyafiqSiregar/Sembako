@@ -133,38 +133,7 @@ export const InventoryView: React.FC = () => {
         </div>
       )}
 
-      {/* Header */}
-      <div className="p-6 bg-white border-b border-stone-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <h1 className="text-2xl font-serif font-bold text-stone-900 tracking-tight">
-          Inventaris & Stok
-        </h1>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsStocktakeModalOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-[#14463C] text-white text-xs font-bold hover:bg-[#0F352E] flex items-center gap-1.5 transition shadow-sm"
-          >
-            <ClipboardCheck className="w-4 h-4 text-emerald-300" />
-            <span>Stok Opname</span>
-          </button>
-          <button
-            onClick={handleCheckConsistency}
-            disabled={isCheckingConsistency || summaries.length === 0}
-            className="px-3.5 py-2 rounded-xl border border-stone-300 hover:border-emerald-600 hover:text-[#14463C] bg-white text-xs font-semibold text-stone-700 flex items-center gap-2 transition"
-            title="Periksa integritas saldo vs pergerakan ledger"
-          >
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>{isCheckingConsistency ? 'Memeriksa...' : 'Audit Konsistensi'}</span>
-          </button>
-          <button
-            onClick={loadData}
-            className="px-3.5 py-2 rounded-xl border border-stone-300 hover:bg-stone-50 text-xs font-semibold text-stone-700 flex items-center gap-2 transition"
-          >
-            <RotateCcw className="w-4 h-4 text-stone-500" />
-            <span>Segarkan</span>
-          </button>
-        </div>
-      </div>
 
       {/* Metrics Row */}
       <div className="p-6 pb-2 grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -235,21 +204,21 @@ export const InventoryView: React.FC = () => {
         </div>
       )}
 
-      {/* Filters Bar */}
+      {/* Unified Filters & Actions Toolbar */}
       <div className="p-6 py-4 flex flex-wrap items-center justify-between gap-3">
-        {/* Search Input */}
-        <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Cari nama produk / SKU..."
-            className="w-full pl-9 pr-4 py-2 bg-white border border-stone-300 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#14463C]"
-          />
-        </div>
+        <div className="flex flex-wrap items-center gap-3 flex-1">
+          {/* Search Input */}
+          <div className="relative w-full sm:w-72">
+            <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cari nama produk / SKU..."
+              className="w-full pl-9 pr-4 py-2 bg-white border border-stone-300 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#14463C]"
+            />
+          </div>
 
-        <div className="flex flex-wrap items-center gap-2">
           {/* Category Filter */}
           <select
             value={selectedCategory}
@@ -275,6 +244,33 @@ export const InventoryView: React.FC = () => {
             <option value="low">Stok Menipis</option>
             <option value="out_of_stock">Stok Habis</option>
           </select>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsStocktakeModalOpen(true)}
+            className="px-3.5 py-2 rounded-xl bg-[#14463C] text-white text-xs font-bold hover:bg-[#0F352E] flex items-center gap-1.5 transition shadow-sm"
+          >
+            <ClipboardCheck className="w-4 h-4 text-emerald-300" />
+            <span>Stok Opname</span>
+          </button>
+          <button
+            onClick={handleCheckConsistency}
+            disabled={isCheckingConsistency || summaries.length === 0}
+            className="px-3.5 py-2 rounded-xl border border-stone-300 hover:border-emerald-600 hover:text-[#14463C] bg-white text-xs font-semibold text-stone-700 flex items-center gap-2 transition"
+            title="Periksa integritas saldo vs pergerakan ledger"
+          >
+            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            <span>{isCheckingConsistency ? 'Memeriksa...' : 'Audit Konsistensi'}</span>
+          </button>
+          <button
+            onClick={loadData}
+            className="px-3.5 py-2 rounded-xl border border-stone-300 hover:bg-stone-50 text-xs font-semibold text-stone-700 flex items-center gap-2 transition"
+          >
+            <RotateCcw className="w-4 h-4 text-stone-500" />
+            <span>Segarkan</span>
+          </button>
         </div>
       </div>
 

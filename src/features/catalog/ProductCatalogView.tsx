@@ -173,58 +173,55 @@ export const ProductCatalogView: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h1 className="font-serif font-bold text-2xl sm:text-3xl text-foreground">
-          Katalog Produk
-        </h1>
+      {/* Unified Action & Filter Toolbar */}
+      <div className="bg-card border border-border rounded-card p-4 shadow-sm flex flex-col gap-3">
+        {/* Top Row: Search Input + Action Buttons */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          {/* Search Input */}
+          <div className="relative flex-1 sm:max-w-md">
+            <Search className="size-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cari nama, SKU, atau barcode..."
+              className="w-full h-10 pl-10 pr-4 bg-background border border-input rounded-pill text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setIsCsvModalOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-pill bg-card border border-input text-xs font-semibold text-foreground hover:bg-muted transition-colors shadow-sm"
-          >
-            <UploadCloud className="size-3.5" />
-            <span>Impor CSV</span>
-          </button>
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            <button
+              type="button"
+              onClick={() => setIsCsvModalOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-pill bg-background border border-input text-xs font-semibold text-foreground hover:bg-muted transition-colors shadow-sm"
+            >
+              <UploadCloud className="size-3.5" />
+              <span>Impor CSV</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setIsCategoryModalOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-pill bg-card border border-input text-xs font-semibold text-foreground hover:bg-muted transition-colors shadow-sm"
-          >
-            <FolderPlus className="size-3.5" />
-            <span>Kategori</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => setIsCategoryModalOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-pill bg-background border border-input text-xs font-semibold text-foreground hover:bg-muted transition-colors shadow-sm"
+            >
+              <FolderPlus className="size-3.5" />
+              <span>Kategori</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={handleCreateNew}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-pill bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary-hover transition-colors shadow-sm"
-          >
-            <Plus className="size-4" />
-            <span>Tambah Produk</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Filter & Search Bar */}
-      <div className="bg-card border border-border rounded-card p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
-        {/* Search Input */}
-        <div className="relative w-full sm:w-80">
-          <Search className="size-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Cari nama, SKU, atau barcode..."
-            className="w-full h-10 pl-10 pr-4 bg-background border border-input rounded-pill text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-          />
+            <button
+              type="button"
+              onClick={handleCreateNew}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-pill bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary-hover transition-colors shadow-sm"
+            >
+              <Plus className="size-4" />
+              <span>Tambah Produk</span>
+            </button>
+          </div>
         </div>
 
-        {/* Category Pills / Filter */}
-        <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
+        {/* Bottom Row: Category Filter Pills */}
+        <div className="flex items-center gap-2 overflow-x-auto pt-2 border-t border-border/50">
           <button
             type="button"
             onClick={() => setSelectedCategory('all')}
