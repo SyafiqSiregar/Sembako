@@ -265,4 +265,190 @@ describe('Integration: CheckoutService Atomik & Idempoten', () => {
     expect(auditLogs[0]?.user_id).toBe(supervisorId);
     expect(auditLogs[0]?.entity_id).toBe(saleId);
   });
+
+  it('berhasil memproses penjualan non-tunai manual (QRIS/Transfer) dengan nomor referensi (FR-POS-18)', async () => {
+    const saleId = 'sale-trx-noncash-01';
+    const params: CheckoutParams = {
+      saleId,
+      sessionId,
+      cashierId,
+      items: [
+        {
+          productId: prodId,
+          productUnitId: 'unit-kg',
+          nameSnapshot: 'Gula Pasir Kristal 1kg',
+          unitCodeSnapshot: 'kg',
+          factorSnapshot: 1,
+          qtyBase: 2,
+          unitPriceSnapshot: 16000,
+          unitCostX10kSnapshot: 125000000,
+        },
+      ],
+      discountTotal: 0,
+      paymentMethod: 'non_cash_manual',
+      amountPaid: 32000,
+      referenceNo: 'QRIS - Ref: RRN-889977',
+    };
+
+    const result = await checkoutService.processCheckout(params);
+
+    expect(result.sale.id).toBe(saleId);
+    expect(result.sale.total).toBe(32000);
+    expect(result.change).toBe(0);
+    expect(result.payment.method).toBe('non_cash_manual');
+    expect(result.payment.amount).toBe(32000);
+    expect(result.payment.reference_no).toBe('QRIS - Ref: RRN-889977');
+
+    // Verifikasi data di IndexedDB
+    const paymentInDb = await db.payments.where('sale_id').equals(saleId).first();
+    expect(paymentInDb?.method).toBe('non_cash_manual');
+    expect(paymentInDb?.reference_no).toBe('QRIS - Ref: RRN-889977');
+
+    // Saldo berkurang dari 50 ke 48
+    const balance = await db.inventory_balances.where('product_id').equals(prodId).first();
+    expect(balance?.qty_base).toBe(48);
+  });
+
+  it('AC-28: retur barang layak jual menambah stok jual, barang rusak dicatat write-off tanpa menambah stok jual', async () => {
+    const saleId = 'sale-ret-ac28';
+    const checkRes = await checkoutService.processCheckout({
+      saleId,
+      sessionId,
+      cashierId,
+      items: [
+        {
+          productId: prodId,
+          productUnitId: 'unit-kg',
+          nameSnapshot: 'Gula Pasir Kristal 1kg',
+          unitCodeSnapshot: 'kg',
+          factorSnapshot: 1,
+          qtyBase: 4,
+          unitPriceSnapshot: 16000,
+          unitCostX10kSnapshot: 125000000,
+        },
+      ],
+      paymentMethod: 'cash',
+      amountPaid: 64000,
+    });
+
+    // Saldo setelah jual: 50 - 4 = 46
+    expect(await invService.getProductStock(prodId)).toBe(46);
+
+    const saleItem = checkRes.items[0]!;
+
+    // Pelanggan retur 2 unit: 1 layak jual + 1 rusak (kemasan sobek/basah)
+    const retRes = await checkoutService.processReturn({
+      saleId,
+      returnedBy: cashierId,
+      reason: '1 bungkus basah terkena hujan saat dibawa, 1 bungkus masih utuh',
+      items: [
+        {
+          saleItemId: saleItem.id,
+          qtyBase: 1,
+          refundAmount: 16000,
+          condition: 'sellable',
+        },
+        {
+          saleItemId: saleItem.id,
+          qtyBase: 1,
+          refundAmount: 16000,
+          condition: 'damaged',
+        },
+      ],
+    });
+
+    expect(retRes.totalRefund).toBe(32000);
+
+    // Saldo stok fisik HANYA bertambah 1 untuk yang layak jual: 46 + 1 = 47 (AC-28)
+    expect(await invService.getProductStock(prodId)).toBe(47);
+
+    // Verifikasi movement RETURN_WRITE_OFF tercatat
+    const writeOffMovements = await db.stock_movements.where('type').equals('RETURN_WRITE_OFF').toArray();
+    expect(writeOffMovements.length).toBe(1);
+
+    // Verifikasi integritas rekonsiliasi ledger tetap 100% konsisten (Invarian INV-01, AC-24)
+    const integrity = await invService.reconcileStockLedger(prodId);
+    expect(integrity.isConsistent).toBe(true);
+    expect(integrity.ledgerTotal).toBe(47);
+  });
+
+  it('BR-18: menolak retur barang jika melebihi batas waktu returnDaysLimit', async () => {
+    const saleId = 'sale-ret-expired-limit';
+    await checkoutService.processCheckout({
+      saleId,
+      sessionId,
+      cashierId,
+      items: [
+        {
+          productId: prodId,
+          productUnitId: 'unit-kg',
+          nameSnapshot: 'Gula Pasir Kristal 1kg',
+          unitCodeSnapshot: 'kg',
+          factorSnapshot: 1,
+          qtyBase: 1,
+          unitPriceSnapshot: 16000,
+          unitCostX10kSnapshot: 125000000,
+        },
+      ],
+      paymentMethod: 'cash',
+      amountPaid: 16000,
+    });
+
+    // Ubah tanggal penjualan menjadi 10 hari yang lalu (melebihi default limit 7 hari)
+    const tenDaysAgo = clock.now() - 10 * 24 * 60 * 60 * 1000;
+    await db.sales.update(saleId, { completed_at: tenDaysAgo });
+
+    const saleItem = await db.sale_items.where('sale_id').equals(saleId).first();
+
+    await expect(
+      checkoutService.processReturn({
+        saleId,
+        returnedBy: cashierId,
+        reason: 'Barang tidak jadi dipakai',
+        items: [
+          {
+            saleItemId: saleItem!.id,
+            qtyBase: 1,
+            refundAmount: 16000,
+          },
+        ],
+      })
+    ).rejects.toThrow(/melebihi batas waktu 7 hari/);
+  });
+
+  it('BR-17: menolak void transaksi jika sesi kasir sudah ditutup', async () => {
+    const saleId = 'sale-to-void-closed-session';
+    await checkoutService.processCheckout({
+      saleId,
+      sessionId,
+      cashierId,
+      items: [
+        {
+          productId: prodId,
+          productUnitId: 'unit-kg',
+          nameSnapshot: 'Gula Pasir Kristal 1kg',
+          unitCodeSnapshot: 'kg',
+          factorSnapshot: 1,
+          qtyBase: 1,
+          unitPriceSnapshot: 16000,
+          unitCostX10kSnapshot: 125000000,
+        },
+      ],
+      paymentMethod: 'cash',
+      amountPaid: 16000,
+    });
+
+    // Tutup sesi kasir
+    await db.cashier_sessions.update(sessionId, { status: 'closed' });
+
+    // Coba void struk dari sesi yang sudah ditutup -> harus ditolak dan disarankan memakai retur
+    await expect(
+      checkoutService.voidSale({
+        saleId,
+        voidedBy: 'user-spv-1',
+        voidReason: 'Salah input',
+      })
+    ).rejects.toThrow(/sesi kas yang sudah ditutup tidak dapat di-void.*Retur/);
+  });
 });
+

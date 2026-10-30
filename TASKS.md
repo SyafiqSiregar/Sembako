@@ -193,4 +193,57 @@ Daftar tugas implementasi bertahap untuk SembakoOS. Mengikuti `AGENTS.md`, `PRD.
   - Redesain halaman Pengaturan (`/settings`): segmented pill tabs, cards terpadu, dan token styling.
   - Pembuatan dokumentasi `README.md` komprehensif dan push repositori ke GitHub (`https://github.com/SyafiqSiregar/Sembako.git`).
   - Total 75 unit & integration tests lulus (100% green).
+- 2026-10-27:
+  - Implementasi Pembayaran Non-Tunai Manual (QRIS & Transfer Bank) di Kasir POS (FR-POS-18, A-02, OQ-10, BR-22).
+  - Dialog pembayaran `PaymentDialog.tsx` mendukung QRIS statis, Transfer Bank (BCA, BRI, Mandiri, BNI, Lainnya), Debit/EDC, input catatan nomor referensi/nama pengirim, dan proteksi checkbox verifikasi dana masuk.
+  - Parameter `referenceNo` diteruskan ke `CheckoutService.processCheckout` dan dicatat ke tabel `payments` IndexedDB.
+  - Cetak struk kasir `ReceiptModal.tsx` dan tabel riwayat transaksi `TransactionHistoryView.tsx` menampilkan saluran non-tunai dan nomor referensi.
+  - Penambahan 2 unit & integration tests baru di `checkout.test.ts` & `session.test.ts`, total 77 tests lulus (100% green).
+  - **Penyempurnaan UI/UX Responsif Tablet Android (Portrait 800x1280 & Landscape 1024x768)**:
+    - Sidebar adaptif: Slide-over Drawer overlay pada `< lg` via Hamburger Menu, Collapsible Rail 72px pada `≥ lg`.
+    - POS Tablet Portrait: Tab switcher (Katalog vs Keranjang), Floating Bottom Cart Bar, kartu produk proporsional (`line-clamp-2`, `min-h-[115px]`, tap target ≥ 44px).
+    - POS Tablet Landscape: 2-kolom berdampingan yang seimbang dan leluasa.
+    - Topbar & Status Bar fleksibel tanpa teks wrapping bertumpuk.
+    - Seluruh tabel data (`products`, `inventory`, `expiry`, `suppliers`, `transactions`, `reports`, `dashboard`, `settings`) dibekali `min-w` di dalam container `overflow-x-auto` yang aman untuk horizontal swipe di tablet Android.
+    - Grafik Tren Penjualan Dashboard (`DashboardView.tsx`) dinamis: Sumbu X otomatis beralih antara format jam operasional (Hari Ini), tanggal harian (7 Hari), rentang 5-harian (30 Hari), dan periode bulanan (Semua), lengkap dengan kurva data akurat dan tooltip nilai rupiah.
+    - Terverifikasi via `browser_subagent` dengan rekaman screenshot portrait & landscape, `pnpm typecheck`, `pnpm test` (77 tests passed), dan `pnpm build`.
+- 2026-10-28:
+  - **Sistem Multi-Satuan (Eceran & Dus), Onboarding Excel Resmi & Form Ramah Awam**:
+    - **Clean Slate**: Menghapus auto-seed produk tiruan di `ProductCatalogView.tsx` sesuai `AGENTS.md` §3 Aturan 3. Database toko dimulai bersih tanpa bias data.
+    - **Formulir Manual Ramah Awam (`ProductFormModal.tsx`)**: Terbagi dalam 3 kotak jelas (Informasi Barang, Eceran, dan Grosir/Dus opsional). Menghilangkan jargon teknis, menyediakan pilihan tombol satuan cepat, teks bantuan kalkulasi modal & untung otomatis, serta validasi barcode.
+    - **Pembaruan Layanan Katalog (`CatalogService.ts`)**: `updateProduct` mendukung penambahan satuan grosir baru (`product_units`) dan barcode kemasan (`product_barcodes`) secara atomik dalam transaksi Dexie.
+    - **Template Excel & Impor CSV (`CsvImportModal.tsx`)**: Tombol unduh template resmi format UTF-8 BOM yang langsung rapi di Excel, pemilih berkas CSV, dan parser yang mendukung data eceran serta dus/grosir sekaligus.
+    - **Quick-Add Barcode di Kasir POS (`PosView.tsx`)**: Modal instan 10 detik saat kasir scan barcode belum terdaftar agar transaksi tidak terhambat.
+    - **Tabel Katalog Multi-Satuan (`ProductCatalogView.tsx`)**: Menampilkan badge harga eceran dan dus/grosir berdampingan serta rincian barcode tiap kemasan.
+    - **Pengujian & Verifikasi**: Pembuatan `multi-unit-onboarding.test.ts` (4 tes baru), total 81 tests lulus (100% green), `pnpm typecheck` (0 error), dan `pnpm build` sukses.
+  - **Skenario Edit, Koreksi Transaksi, Retur Kondisi, Batas Hari, Void Sesi, Reversal Penerimaan & Timeline Audit**:
+    - **GAP-01**: Retur barang berbasis kondisi (`sellable` -> `CUSTOMER_RETURN` saldo bertambah; `damaged`/`expired` -> `RETURN_WRITE_OFF` saldo tidak bertambah, dicatat kerugian). Konsistensi ledger & rekonsiliasi 100% terpenuhi.
+    - **GAP-02 & GAP-06**: Pengaturan `returnDaysLimit` (default 7 hari) di `StoreSettings` dan tab Kebijakan Toko. Validasi umur transaksi memblokir retur kedaluwarsa.
+    - **GAP-03**: Pembatasan void hanya pada transaksi dari sesi kasir aktif yang masih `open` (BR-17).
+    - **GAP-04**: Tab filter `Aktif`, `Diarsipkan`, `Semua` serta tombol "Aktifkan" reaktivasi barang di `ProductCatalogView.tsx`.
+    - **GAP-05**: Reversal penerimaan barang pemasok (`GoodsReceiptService.reverseReceipt`) via mutasi `REVERSAL` & audit log, dilengkapi tombol aksi di `SuppliersView.tsx`.
+    - **GAP-07**: Panduan 3 langkah menangani produk duplikat langsung di `ProductCatalogView.tsx`.
+    - **GAP-08**: Visual Kronologi & Timeline Audit per transaksi di modal rincian struk `TransactionHistoryView.tsx`.
+    - **Pengujian**: 5 tes integrasi baru di `checkout.test.ts`, `product.test.ts`, dan `supplier-receipt.test.ts`. Total 86 tests lulus (100% green), typecheck 0 error, build produksi PWA sukses.
+  - **Input Stok Awal & Tanggal Kedaluwarsa Langsung di Formulir Barang (`ProductFormModal.tsx` & `CatalogService.ts`)**:
+    - Progressive disclosure: sub-card amber stok awal dan tanggal expired terbuka saat `trackExpiry` dicentang, atau input stok ringkas saat tidak dicentang.
+    - `CatalogService.createProduct` secara atomik mendaftarkan batch (`product_batches`), membuat saldo (`inventory_balances`), dan mencatat mutasi ledger `INITIAL_BALANCE`.
+    - Barang baru langsung siap dan bisa dijual di Kasir POS dengan alokasi FEFO.
+    - Template & parser CSV mendukung kolom `stok_awal` dan `tanggal_kedaluwarsa`.
+    - Pengujian: 4 tes integrasi baru di `initial-stock-expiry.test.ts`. Total 90 tests lulus (100% green), typecheck 0 error, build produksi PWA sukses.
+- 2026-10-30:
+  - **Perombakan Template Excel/CSV & Modal Impor Katalog Produk (`src/lib/csv.ts`, `CsvImportModal.tsx`, `csv.test.ts`)**:
+    - **Template Kerja Excel Rapi (`.xls` Spreadsheet HTML/XML)**: 14 kolom terstruktur dalam 4 kelompok berwarna (A. Identitas Barang, B. Satuan & Harga Eceran, C. Kemasan Grosir/Dus Opsional, D. Stok Awal & Kedaluwarsa), lebar kolom otomatis, baris petunjuk pengisian, dan format teks (`mso-number-format:'\@'`) pada sel barcode agar angka `0` di depan tidak hilang dan barcode 13 digit tidak rusak menjadi notasi ilmiah `8.99E+12`.
+    - **Template CSV Excel Indonesia (`.csv`)**: Pemisah titik koma (`;`) dengan UTF-8 BOM agar tidak menumpuk di Kolom A saat dibuka di Microsoft Excel regional Indonesia.
+    - **Smart Multi-Format Parser (`src/lib/csv.ts`)**: Mendukung auto-detect pemisah Tab (`\t` hasil Copy-Paste langsung dari blok sel Excel), titik koma (`;`), koma (`,`), serta pembacaan langsung berkas `.xls` HTML Table. Otomatis melewati baris judul grup dan baris petunjuk, membersihkan rumus teks barcode `="089..."`, dan memvalidasi kelengkapan grosir, harga modal vs harga jual, tanggal kedaluwarsa, serta duplikasi barcode.
+    - **Antarmuka Modal Impor Baru (`CsvImportModal.tsx`)**: Dilengkapi panel interaktif **"Panduan Struktur 14 Kolom & Contoh Pengisian"**, tombol **"Muat 3 Contoh Barang"**, dan tabel pratinjau lengkap 7 kolom (Baris #, Status, Nama & Barcode, Kategori, Modal/Jual Eceran, Grosir/Dus, Stok Awal & ED). Disempurnakan menjadi satu tombol utama **"Unduh Template Excel (.xls)"** dengan `mso-width-source:userset`.
+    - **Pengujian**: 5 unit tests baru di `tests/unit/data/csv.test.ts`, total 95 tests lulus (100% green).
+  - **Perombakan Halaman Laporan & Analitik + Ekspor Excel (`.xls`) & PDF Resmi A4 (`ReportsView.tsx`, `ReportPdfPreviewModal.tsx`, `report.service.ts`)**:
+    - Perbaikan tipografi kartu metrik menggunakan `tabular-nums`, token warna semantik `DESIGN_SYSTEM.md`, badge status dengan ikon, pencarian cepat per tab, filter status stok, serta baris `<tfoot>` `TOTAL` otomatis di keempat tab laporan.
+    - Penambahan fitur **`Unduh Excel (.xls)`** terformat rapi (`mso-width-source:userset`, kop toko, periode, dan baris total) menggantikan CSV mentah.
+    - Penambahan fitur **`Ekspor PDF`** lengkap dengan **Modal Pratinjau Dokumen Laporan PDF (A4)**, Kop Identitas Toko, 4 Kotak Ringkasan KPI, Tabel + Total, dan Kolom Tanda Tangan Pemilik Toko.
+    - **Pengujian**: Penambahan tes integrasi ekspor Excel & PDF di `tests/integration/services/reports.test.ts`, `pnpm typecheck` 0 error, dan `pnpm build` sukses.
+
+
+
 

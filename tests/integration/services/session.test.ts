@@ -111,4 +111,82 @@ describe('Service: CashierSessionService (FR-AUTH-05..08, AC-32)', () => {
     expect(audit).toBeDefined();
     expect(audit?.reason).toContain('Selisih: Rp -10.000');
   });
+
+  it('pembayaran non-tunai manual tidak dihitung ke dalam kas fisik laci kas saat tutup kas (BR-22)', async () => {
+    // Given: Modal awal Rp 100.000
+    const session = await sessionService.openSession({
+      userId: 'user-1',
+      openingCash: 100_000,
+    });
+
+    // Penjualan 1: Tunai Rp 150.000
+    await db.sales.add({
+      id: 'sale-cash-1',
+      receipt_no: 'TRX-CASH',
+      session_id: session.id,
+      cashier_id: 'user-1',
+      status: 'completed',
+      subtotal: 150_000,
+      discount_total: 0,
+      tax_total: 0,
+      rounding_adjustment: 0,
+      total: 150_000,
+      completed_at: Date.now(),
+      created_at: Date.now(),
+      created_by: 'user-1',
+      updated_at: Date.now(),
+      updated_by: 'user-1',
+      row_version: 1,
+    });
+    await db.payments.add({
+      id: 'pay-cash-1',
+      sale_id: 'sale-cash-1',
+      method: 'cash',
+      amount: 150_000,
+      paid_at: Date.now(),
+    });
+
+    // Penjualan 2: QRIS Non-Tunai Rp 200.000
+    await db.sales.add({
+      id: 'sale-qris-1',
+      receipt_no: 'TRX-QRIS',
+      session_id: session.id,
+      cashier_id: 'user-1',
+      status: 'completed',
+      subtotal: 200_000,
+      discount_total: 0,
+      tax_total: 0,
+      rounding_adjustment: 0,
+      total: 200_000,
+      completed_at: Date.now(),
+      created_at: Date.now(),
+      created_by: 'user-1',
+      updated_at: Date.now(),
+      updated_by: 'user-1',
+      row_version: 1,
+    });
+    await db.payments.add({
+      id: 'pay-qris-1',
+      sale_id: 'sale-qris-1',
+      method: 'non_cash_manual',
+      amount: 200_000,
+      paid_at: Date.now(),
+      reference_no: 'QRIS - Ref: RRN-12345',
+    });
+
+    // Expected cash HANYA modal (100.000) + tunai (150.000) = 250.000 (QRIS 200.000 tidak di laci kas)
+    const expected = await sessionService.calculateExpectedCash(session.id);
+    expect(expected).toBe(250_000);
+
+    // Kasir menutup dengan kas fisik tepat Rp 250.000 (Selisih 0)
+    const result = await sessionService.closeSession({
+      sessionId: session.id,
+      closingCash: 250_000,
+      closedBy: 'user-1',
+    });
+
+    expect(result.expectedCash).toBe(250_000);
+    expect(result.discrepancy).toBe(0);
+    expect(result.session.status).toBe('closed');
+  });
 });

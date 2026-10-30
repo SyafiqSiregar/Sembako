@@ -11,6 +11,7 @@ export type MovementType =
   | 'SALE'
   | 'SALE_VOID'
   | 'CUSTOMER_RETURN'
+  | 'RETURN_WRITE_OFF'
   | 'DAMAGE_SPOILAGE'
   | 'INTERNAL_USE'
   | 'COUNT_ADJUSTMENT'

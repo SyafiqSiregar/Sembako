@@ -283,4 +283,82 @@ export class GoodsReceiptService {
 
     return { receipt, supplier, items: itemsWithNames };
   }
+
+  /**
+   * Membalikkan (Reversal) penerimaan barang yang salah catat (BR-27, AC-25).
+   * Penerimaan yang sudah diposting tidak boleh diedit; koreksi dilakukan
+   * dengan membalikkan seluruh mutasi stok dan mencatat audit log.
+   */
+  async reverseReceipt(params: {
+    receiptId: string;
+    reversedBy: string;
+    reason: string;
+  }): Promise<GoodsReceipt> {
+    const reason = params.reason?.trim();
+    if (!reason) {
+      throw new Error('Alasan reversal penerimaan wajib diisi');
+    }
+
+    const receipt = await this.db.goods_receipts.get(params.receiptId);
+    if (!receipt) {
+      throw new Error('Penerimaan barang tidak ditemukan');
+    }
+
+    if (receipt.status !== 'posted') {
+      throw new Error(`Penerimaan barang tidak dapat dibalikkan karena berstatus '${receipt.status}'`);
+    }
+
+    const rawItems = await this.db.goods_receipt_items.where('receipt_id').equals(params.receiptId).toArray();
+    const now = this.clock.now();
+
+    await this.db.transaction(
+      'rw',
+      [
+        this.db.goods_receipts,
+        this.db.inventory_balances,
+        this.db.stock_movements,
+        this.db.stock_movement_items,
+        this.db.products,
+        this.db.audit_logs,
+      ],
+      async () => {
+        // Balikkan stok lewat movement REVERSAL (delta negatif)
+        await this.inventoryService.recordMovement({
+          type: 'REVERSAL',
+          refType: 'goods_receipt',
+          refId: params.receiptId,
+          userId: params.reversedBy,
+          reason: `Reversal penerimaan #${receipt.receipt_no}: ${reason}`,
+          items: rawItems.map((ri) => ({
+            productId: ri.product_id,
+            batchId: ri.batch_id,
+            qtyDeltaBase: -ri.qty_base, // Kurangi kembali stok = negatif
+            unitCostX10k: ri.unit_cost_x10k,
+          })),
+        });
+
+        // Tandai status penerimaan sebagai reversed
+        await this.db.goods_receipts.update(params.receiptId, {
+          status: 'reversed',
+          updated_at: now,
+          updated_by: params.reversedBy,
+        });
+
+        // Audit log
+        await this.db.audit_logs.add({
+          id: this.idGen.generateId(),
+          occurred_at: now,
+          user_id: params.reversedBy,
+          device_id: 'local_device',
+          action: 'goods_receipt.reverse',
+          entity_type: 'goods_receipt',
+          entity_id: params.receiptId,
+          reason,
+        });
+      }
+    );
+
+    return (await this.db.goods_receipts.get(params.receiptId))!;
+  }
 }
+

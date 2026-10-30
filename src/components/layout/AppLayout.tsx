@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -11,12 +11,16 @@ import {
   BarChart3,
   Settings,
   HelpCircle,
-  Bell,
   Lock,
   Store,
   DollarSign,
+  Menu,
+  X,
+  PanelLeftClose,
+  PanelLeft,
 } from 'lucide-react';
 import { SyncStatusChip } from '../shared/SyncStatusChip';
+import { NotificationCenterPopover } from './NotificationCenterPopover';
 import { useAuthStore } from '@/features/auth/authStore';
 import { LockScreenModal } from '@/features/auth/LockScreenModal';
 import { CashierSessionModal } from '@/features/auth/CashierSessionModal';
@@ -73,8 +77,19 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     icon: Store,
   };
   const CurrentIcon = currentRoute.icon;
+
   const [sessionModalOpen, setSessionModalOpen] = useState(false);
   const [sessionModalMode, setSessionModalMode] = useState<'open' | 'close'>('open');
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [backupStatus, setBackupStatus] = useState<{ label: string; isSafe: boolean }>({
+    label: 'Memeriksa...',
+    isSafe: true,
+  });
+
+  const handleBackupStatusChange = useCallback((label: string, isSafe: boolean) => {
+    setBackupStatus({ label, isSafe });
+  }, []);
 
   const {
     currentUser,
@@ -88,6 +103,11 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     initialize();
   }, [initialize]);
 
+  // Tutup mobile drawer saat navigasi berubah
+  useEffect(() => {
+    setIsMobileDrawerOpen(false);
+  }, [location.pathname]);
+
   const handleOpenSessionModal = () => {
     setSessionModalMode(activeSession ? 'close' : 'open');
     setSessionModalOpen(true);
@@ -97,22 +117,45 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden">
-      {/* Sidebar Navigasi Kiri (240px di Tablet / Desktop) */}
-      <aside className="w-60 flex-shrink-0 bg-background border-r border-border flex flex-col justify-between p-4">
-        <div className="flex flex-col gap-6">
-          {/* Brand Logo & Toko */}
-          <div className="flex items-center gap-3 px-2 pt-1">
-            <div className="size-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-sm">
-              <Store className="size-5" />
+      {/* ======================================================== */}
+      {/* 1. SIDEBAR DESKTOP / TABLET LANDSCAPE (>= lg)            */}
+      {/* ======================================================== */}
+      <aside
+        className={`hidden lg:flex flex-shrink-0 bg-background border-r border-border flex-col justify-between p-3.5 transition-all duration-200 select-none ${
+          isSidebarCollapsed ? 'w-[72px]' : 'w-60'
+        }`}
+      >
+        <div className="flex flex-col gap-5">
+          {/* Brand Logo & Collapse Toggle */}
+          <div className="flex items-center justify-between px-1 pt-1">
+            <div className="flex items-center gap-3 overflow-hidden">
+              <div className="size-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-xs shrink-0">
+                <Store className="size-5" />
+              </div>
+              {!isSidebarCollapsed && (
+                <div className="flex flex-col truncate">
+                  <span className="font-serif font-bold text-lg tracking-tight text-foreground leading-none">
+                    SembakoOS
+                  </span>
+                  <span className="text-[11px] text-muted-foreground font-medium mt-1 leading-none">
+                    Toko Berkah
+                  </span>
+                </div>
+              )}
             </div>
-            <div className="flex flex-col">
-              <span className="font-serif font-bold text-lg tracking-tight text-foreground">
-                SembakoOS
-              </span>
-              <span className="text-xs text-muted-foreground font-medium">
-                Toko Berkah
-              </span>
-            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+              title={isSidebarCollapsed ? 'Perluas Sidebar' : 'Ciutkan Sidebar'}
+            >
+              {isSidebarCollapsed ? (
+                <PanelLeft className="size-4" />
+              ) : (
+                <PanelLeftClose className="size-4" />
+              )}
+            </button>
           </div>
 
           {/* Menu Navigasi Utama */}
@@ -124,18 +167,21 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                 <NavLink
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center justify-between px-3 py-2.5 rounded-pill text-sm font-medium transition-colors ${
+                  title={isSidebarCollapsed ? item.name : undefined}
+                  className={`flex items-center ${
+                    isSidebarCollapsed ? 'justify-center px-0 py-2.5' : 'justify-between px-3 py-2.5'
+                  } rounded-pill text-xs font-semibold transition-colors ${
                     isActive
-                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      ? 'bg-primary text-primary-foreground shadow-xs'
                       : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <Icon className="size-4 flex-shrink-0" />
-                    <span>{item.name}</span>
+                  <div className={`flex items-center ${isSidebarCollapsed ? '' : 'gap-3'} truncate`}>
+                    <Icon className="size-4 shrink-0" />
+                    {!isSidebarCollapsed && <span className="truncate">{item.name}</span>}
                   </div>
-                  {item.tag && (
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
+                  {!isSidebarCollapsed && item.tag && (
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-secondary text-secondary-foreground">
                       {item.tag}
                     </span>
                   )}
@@ -146,7 +192,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         </div>
 
         {/* Menu Bawah & Status Card */}
-        <div className="flex flex-col gap-4 pt-4 border-t border-border">
+        <div className="flex flex-col gap-3 pt-3 border-t border-border">
           <nav className="flex flex-col gap-1" aria-label="Navigasi Bawah">
             {secondaryNavItems.map((item) => {
               const Icon = item.icon;
@@ -155,94 +201,256 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                 <NavLink
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-pill text-sm font-medium transition-colors ${
+                  title={isSidebarCollapsed ? item.name : undefined}
+                  className={`flex items-center ${
+                    isSidebarCollapsed ? 'justify-center px-0 py-2' : 'gap-3 px-3 py-2'
+                  } rounded-pill text-xs font-semibold transition-colors ${
                     isActive
                       ? 'bg-primary text-primary-foreground'
                       : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                   }`}
                 >
-                  <Icon className="size-4" />
-                  <span>{item.name}</span>
+                  <Icon className="size-4 shrink-0" />
+                  {!isSidebarCollapsed && <span className="truncate">{item.name}</span>}
                 </NavLink>
               );
             })}
           </nav>
 
-          {/* Status Backup Card */}
-          <div className="bg-card border border-border p-3 rounded-card flex flex-col gap-1.5 shadow-sm">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground font-medium">Backup lokal</span>
-              <span className="size-2 rounded-full bg-success-text" title="Aman" />
-            </div>
-            <p className="text-xs font-semibold text-foreground">
-              Hari ini, 08:30 WIB
-            </p>
-          </div>
+          {!isSidebarCollapsed && (
+            <NavLink
+              to="/settings"
+              className="bg-card hover:bg-muted/60 border border-border p-2.5 rounded-card flex flex-col gap-1 shadow-sm transition-colors"
+              title="Kelola Backup Database Lokal"
+            >
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-muted-foreground font-medium">Backup lokal</span>
+                <span
+                  className={`size-2 rounded-full ${
+                    backupStatus.isSafe ? 'bg-success-foreground' : 'bg-warning-foreground'
+                  }`}
+                  title={backupStatus.isSafe ? 'Aman' : 'Perlu Backup'}
+                />
+              </div>
+              <p className="text-[11px] font-semibold text-foreground truncate">
+                {backupStatus.label}
+              </p>
+            </NavLink>
+          )}
         </div>
       </aside>
 
-      {/* Area Konten Utama */}
+      {/* ======================================================== */}
+      {/* 2. DRAWER OVERLAY UNTUK TABLET PORTRAIT / MOBILE (< lg)  */}
+      {/* ======================================================== */}
+      {isMobileDrawerOpen && (
+        <div className="fixed inset-0 z-50 flex lg:hidden animate-in fade-in duration-200">
+          {/* Backdrop Blur */}
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs"
+            onClick={() => setIsMobileDrawerOpen(false)}
+          />
+
+          {/* Drawer Sidebar Content */}
+          <aside className="relative w-72 max-w-[85vw] h-full bg-background border-r border-border flex flex-col justify-between p-4 shadow-2xl z-10 overflow-y-auto animate-in slide-in-from-left duration-200">
+            <div className="flex flex-col gap-4">
+              {/* Header Drawer */}
+              <div className="flex items-center justify-between px-1 pt-1">
+                <div className="flex items-center gap-3">
+                  <div className="size-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-sm">
+                    <Store className="size-5" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-serif font-bold text-lg tracking-tight text-foreground leading-tight">
+                      SembakoOS
+                    </span>
+                    <span className="text-xs text-muted-foreground font-medium">
+                      Toko Berkah
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileDrawerOpen(false)}
+                  aria-label="Tutup menu navigasi"
+                  className="size-9 rounded-full border border-input bg-card flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+
+              {/* Kartu Profil Kasir & Status Lokal (Khusus Mobile/Tablet Drawer) */}
+              <div className="bg-card border border-border rounded-card p-3 flex flex-col gap-2.5 shadow-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="size-8 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold shrink-0">
+                      {currentUser ? currentUser.name.charAt(0) : 'U'}
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-xs font-bold text-foreground truncate">
+                        {currentUser ? currentUser.name : 'Kasir'}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground truncate">
+                        {roleName}
+                      </span>
+                    </div>
+                  </div>
+                  <SyncStatusChip status="saved_local" />
+                </div>
+              </div>
+
+              {/* Navigasi Utama */}
+              <nav className="flex flex-col gap-1" aria-label="Navigasi Tablet">
+                {mainNavItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = location.pathname === item.path;
+                  return (
+                    <NavLink
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setIsMobileDrawerOpen(false)}
+                      className={`flex items-center justify-between px-3.5 py-3 rounded-pill text-xs font-semibold transition-colors ${
+                        isActive
+                          ? 'bg-primary text-primary-foreground shadow-xs'
+                          : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Icon className="size-5 shrink-0" />
+                        <span>{item.name}</span>
+                      </div>
+                      {item.tag && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
+                          {item.tag}
+                        </span>
+                      )}
+                    </NavLink>
+                  );
+                })}
+              </nav>
+            </div>
+
+            {/* Menu Bawah & Status */}
+            <div className="flex flex-col gap-3 pt-3 border-t border-border">
+              <nav className="flex flex-col gap-1">
+                {secondaryNavItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = location.pathname === item.path;
+                  return (
+                    <NavLink
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setIsMobileDrawerOpen(false)}
+                      className={`flex items-center gap-3 px-3.5 py-2.5 rounded-pill text-xs font-semibold transition-colors ${
+                        isActive
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                      }`}
+                    >
+                      <Icon className="size-4 shrink-0" />
+                      <span>{item.name}</span>
+                    </NavLink>
+                  );
+                })}
+              </nav>
+
+              <NavLink
+                to="/settings"
+                onClick={() => setIsMobileDrawerOpen(false)}
+                className="bg-card hover:bg-muted/60 border border-border p-3 rounded-card flex flex-col gap-1 shadow-sm transition-colors"
+              >
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground font-medium">Backup lokal</span>
+                  <span
+                    className={`size-2 rounded-full ${
+                      backupStatus.isSafe ? 'bg-success-foreground' : 'bg-warning-foreground'
+                    }`}
+                  />
+                </div>
+                <p className="text-xs font-semibold text-foreground truncate">
+                  {backupStatus.label}
+                </p>
+              </NavLink>
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* 3. AREA KONTEN UTAMA & HEADER RESPONSIF                   */}
+      {/* ======================================================== */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Top Header Bar (Harmonis & Kontekstual) */}
-        <header className="h-16 bg-background border-b border-border flex items-center justify-between px-6 sm:px-8 flex-shrink-0">
-          {/* Konteks Halaman Aktif */}
-          <div className="flex items-center gap-3">
-            <div className="size-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+        {/* Top Header Bar Responsif */}
+        <header className="h-14 sm:h-16 bg-background border-b border-border flex items-center justify-between px-3 sm:px-6 flex-shrink-0 gap-2">
+          {/* Konteks Halaman & Tombol Hamburger */}
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1 overflow-hidden">
+            {/* Tombol Hamburger Drawer (Tampil di < lg) */}
+            <button
+              type="button"
+              onClick={() => setIsMobileDrawerOpen(true)}
+              className="lg:hidden size-9 rounded-full border border-input bg-card flex items-center justify-center text-foreground hover:bg-muted active:scale-95 transition-all shadow-sm shrink-0"
+              title="Buka Menu Navigasi"
+              aria-label="Buka navigasi menu"
+            >
+              <Menu className="size-5" />
+            </button>
+
+            <div className="hidden sm:flex size-8 sm:size-9 rounded-xl bg-primary/10 text-primary items-center justify-center shrink-0">
               <CurrentIcon className="size-4" />
             </div>
-            <div className="flex items-center gap-2">
-              <span className="font-serif font-bold text-base sm:text-lg text-foreground leading-tight">
+
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 overflow-hidden">
+              <span className="font-serif font-bold text-base sm:text-lg text-foreground truncate">
                 {currentRoute.name}
               </span>
               {isPos && (
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground">
+                <span className="hidden lg:inline-block text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground whitespace-nowrap shrink-0">
                   POS Aktif
                 </span>
               )}
             </div>
           </div>
 
-          {/* Global Header Actions */}
-          <div className="flex items-center gap-3">
+          {/* Global Header Actions (Rapi, Terukur, Bebas Tumpang Tindih di Mobile) */}
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             {/* Status Sesi Kasir Button */}
             <button
               type="button"
               onClick={handleOpenSessionModal}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-xs font-semibold border transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-ring ${
+              className={`min-h-[36px] flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-xs font-semibold border transition-all shadow-sm active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-ring whitespace-nowrap shrink-0 ${
                 activeSession
                   ? 'bg-secondary text-secondary-foreground border-secondary hover:bg-accent'
-                  : 'bg-warning/20 text-warning-text border-warning/40 hover:bg-warning/30'
+                  : 'bg-warning/30 text-warning-foreground border-warning-foreground/25 hover:bg-warning/50'
               }`}
             >
-              <DollarSign className="size-3.5" />
-              <span>{activeSession ? 'Sesi Kas: Aktif' : 'Buka Kasir'}</span>
+              <DollarSign className="size-3.5 shrink-0" />
+              <span className="hidden md:inline">
+                {activeSession ? 'Sesi Kas: Aktif' : 'Buka Kasir'}
+              </span>
+              <span className="inline md:hidden">
+                {activeSession ? 'Kasir Aktif' : 'Buka Kas'}
+              </span>
             </button>
 
-            {/* Status Sinkronisasi Data */}
-            <SyncStatusChip status="saved_local" />
+            {/* Status Sinkronisasi Data (Tampil di >= sm; di Mobile < sm pindah ke dalam Drawer) */}
+            <div className="hidden sm:block shrink-0">
+              <SyncStatusChip status="saved_local" />
+            </div>
 
-            {/* Tombol Notifikasi */}
-            <button
-              type="button"
-              className="relative size-9 rounded-full bg-card border border-input flex items-center justify-center text-foreground hover:bg-muted transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              title="Notifikasi"
-              aria-label="Notifikasi sistem"
-            >
-              <Bell className="size-4" />
-              <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-destructive-text" />
-            </button>
+            {/* Pusat Peringatan Operasional Toko (Tampil di Mobile & Desktop) */}
+            <NotificationCenterPopover onBackupStatusChange={handleBackupStatusChange} />
 
-            {/* Profil Kasir & Tombol Kunci Layar */}
-            <div className="flex items-center gap-2 pl-2 border-l border-border">
-              <div className="flex items-center gap-2 bg-card border border-input px-3 py-1.5 rounded-pill shadow-sm">
-                <div className="size-6 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold">
+            {/* Profil Kasir (>= sm) & Tombol Kunci Layar */}
+            <div className="flex items-center gap-1.5 sm:gap-2 sm:pl-2 sm:border-l sm:border-border shrink-0">
+              <div className="hidden sm:flex items-center gap-2 bg-card border border-input px-2.5 py-1.5 rounded-pill shadow-sm">
+                <div className="size-6 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold shrink-0">
                   {currentUser ? currentUser.name.charAt(0) : 'U'}
                 </div>
-                <div className="flex flex-col text-left">
-                  <span className="text-xs font-semibold text-foreground leading-none">
-                    {currentUser ? currentUser.name : 'Memuat...'}
+                <div className="hidden md:flex flex-col text-left">
+                  <span className="text-xs font-semibold text-foreground leading-none truncate max-w-[100px]">
+                    {currentUser ? currentUser.name : 'Kasir'}
                   </span>
-                  <span className="text-[10px] text-muted-foreground leading-none">
+                  <span className="text-[10px] text-muted-foreground leading-none mt-0.5">
                     {roleName}
                   </span>
                 </div>
@@ -251,7 +459,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               <button
                 type="button"
                 onClick={lockScreen}
-                className="size-9 rounded-full bg-card border border-input flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                className="size-9 rounded-full bg-card border border-input flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted active:scale-95 transition-all shadow-sm shrink-0 focus:outline-none focus:ring-2 focus:ring-ring"
                 title="Kunci Layar (PIN)"
                 aria-label="Kunci layar kasir"
               >
@@ -261,12 +469,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           </div>
         </header>
 
-        {/* Konten Scrollable: POS full-bleed, Halaman lain dengan max-w & padding proporsional */}
-        <main className={`flex-1 ${isPos ? 'overflow-hidden p-0' : 'overflow-y-auto p-6 sm:p-8'}`}>
+        {/* Konten Scrollable: POS full-bleed, Halaman lain dengan padding adaptif */}
+        <main className={`flex-1 min-w-0 ${isPos ? 'overflow-hidden p-0' : 'overflow-y-auto p-3.5 sm:p-6 lg:p-8'}`}>
           {isPos ? (
             children
           ) : (
-            <div className="max-w-7xl mx-auto">
+            <div className="max-w-7xl mx-auto w-full">
               {children}
             </div>
           )}

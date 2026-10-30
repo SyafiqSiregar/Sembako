@@ -155,5 +155,62 @@ describe('Integration: SupplierService & GoodsReceiptService (T3.04, T3.05, AC-2
       expect(audit).toBeDefined();
       expect(audit?.entity_id).toBe(receiptRes.receipt.id);
     });
+
+    it('GAP-05 (BR-27, AC-25): membalikkan (reversal) penerimaan yang salah catat tanpa merusak integritas ledger', async () => {
+      const sup = await supplierService.createSupplier({
+        name: 'CV Berkah Pangan',
+        createdBy: userId,
+      });
+
+      // Penerimaan 10 unit
+      const receiptRes = await receiptService.createAndPostReceipt({
+        supplierId: sup.id,
+        supplierRefNo: 'INV-ERR-001',
+        receivedDate: '2026-10-25',
+        receivedBy: userId,
+        items: [
+          {
+            productId: prodId,
+            productUnitId: unitId,
+            qtyBase: 10,
+            unitCostX10k: 100000000,
+          },
+        ],
+      });
+
+      expect(await invService.getProductStock(prodId)).toBe(10);
+
+      // Lakukan Reversal
+      const reversed = await receiptService.reverseReceipt({
+        receiptId: receiptRes.receipt.id,
+        reversedBy: userId,
+        reason: 'Salah input kuantitas barang dari supplier, seharusnya 2 bukan 10',
+      });
+
+      expect(reversed.status).toBe('reversed');
+
+      // Saldo kembali ke 0
+      expect(await invService.getProductStock(prodId)).toBe(0);
+
+      // Verifikasi movement REVERSAL
+      const revMovement = await db.stock_movements.where('type').equals('REVERSAL').first();
+      expect(revMovement).toBeDefined();
+
+      // Integritas ledger tetap 100% konsisten
+      const integrity = await invService.reconcileStockLedger(prodId);
+      expect(integrity.isConsistent).toBe(true);
+      expect(integrity.currentBalance).toBe(0);
+      expect(integrity.ledgerTotal).toBe(0);
+
+      // Mencegah reversal ganda
+      await expect(
+        receiptService.reverseReceipt({
+          receiptId: receiptRes.receipt.id,
+          reversedBy: userId,
+          reason: 'Coba reversal lagi',
+        })
+      ).rejects.toThrow(/tidak dapat dibalikkan karena berstatus 'reversed'/);
+    });
   });
 });
+

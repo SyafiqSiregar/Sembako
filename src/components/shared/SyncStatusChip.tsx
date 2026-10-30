@@ -11,12 +11,13 @@ export const SyncStatusChip: React.FC<SyncStatusChipProps> = ({ status = 'saved_
   if (status === 'saving') {
     return (
       <div
-        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-pill bg-info text-info-text text-xs font-semibold border border-info-text/20 shadow-sm"
+        className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-pill bg-info text-info-text text-xs font-semibold border border-info-text/20 shadow-xs whitespace-nowrap shrink-0"
         role="status"
         aria-live="polite"
       >
-        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-        <span>Menyimpan...</span>
+        <Loader2 className="size-3.5 animate-spin" />
+        <span className="hidden sm:inline">Menyimpan...</span>
+        <span className="inline sm:hidden">Simpan...</span>
       </div>
     );
   }
@@ -24,23 +25,25 @@ export const SyncStatusChip: React.FC<SyncStatusChipProps> = ({ status = 'saved_
   if (status === 'offline') {
     return (
       <div
-        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-pill bg-info text-info-text text-xs font-semibold border border-info-text/20 shadow-sm"
+        className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-pill bg-info text-info-text text-xs font-semibold border border-info-text/20 shadow-xs whitespace-nowrap shrink-0"
         role="status"
       >
-        <WifiOff className="w-3.5 h-3.5" />
-        <span>Mode Offline: Data Lokal</span>
+        <WifiOff className="size-3.5" />
+        <span className="hidden sm:inline">Offline (Lokal)</span>
+        <span className="inline sm:hidden">Offline</span>
       </div>
     );
   }
 
   return (
     <div
-      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-pill bg-success text-success-text text-xs font-semibold border border-success-text/20 shadow-sm"
+      className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-pill bg-success text-success-text text-xs font-semibold border border-success-text/20 shadow-xs whitespace-nowrap shrink-0"
       role="status"
       title="Data tersimpan 100% aman di IndexedDB perangkat ini"
     >
-      <HardDriveDownload className="w-3.5 h-3.5 shrink-0" />
-      <span>Tersimpan di perangkat</span>
+      <HardDriveDownload className="size-3.5 shrink-0" />
+      <span className="hidden sm:inline">Tersimpan lokal</span>
+      <span className="inline sm:hidden">Lokal</span>
     </div>
   );
 };

@@ -37,6 +37,9 @@ export interface CreateProductInput {
   createdBy: string;
   units: CreateProductUnitInput[];
   barcodes?: CreateProductBarcodeInput[];
+  initialStockBase?: number;
+  initialExpiryDate?: string; // YYYY-MM-DD
+  initialBatchCode?: string;
 }
 
 export interface UpdateProductInput {
@@ -214,6 +217,9 @@ export class CatalogService {
         this.db.product_units,
         this.db.product_barcodes,
         this.db.inventory_balances,
+        this.db.product_batches,
+        this.db.stock_movements,
+        this.db.stock_movement_items,
         this.db.audit_logs,
       ],
       async () => {
@@ -223,13 +229,68 @@ export class CatalogService {
           await this.db.product_barcodes.bulkAdd(productBarcodes);
         }
 
-        // Saldo stok awal 0
-        await this.db.inventory_balances.add({
-          product_id: productId,
-          batch_id: '',
-          qty_base: 0,
-          last_movement_at: now,
-        });
+        const initialStock = params.initialStockBase && params.initialStockBase > 0
+          ? assertQuantity(params.initialStockBase)
+          : 0;
+
+        if (initialStock > 0) {
+          const movementId = this.idGen.generateId();
+          let batchId: string = '';
+
+          if (params.trackExpiry) {
+            if (!params.initialExpiryDate || !/^\d{4}-\d{2}-\d{2}$/.test(params.initialExpiryDate)) {
+              throw new Error('Tanggal kedaluwarsa wajib diisi dengan format YYYY-MM-DD jika stok awal diisi');
+            }
+            batchId = this.idGen.generateId();
+            const batchCode = params.initialBatchCode?.trim() || `BTH-${params.initialExpiryDate.replace(/-/g, '')}`;
+
+            await this.db.product_batches.add({
+              id: batchId,
+              product_id: productId,
+              batch_code: batchCode,
+              expiry_date: params.initialExpiryDate,
+              active: 1,
+              created_at: now,
+            });
+          }
+
+          // Catat saldo stok awal
+          await this.db.inventory_balances.add({
+            product_id: productId,
+            batch_id: batchId,
+            qty_base: initialStock,
+            last_movement_at: now,
+          });
+
+          // Catat mutasi stok INITIAL_BALANCE di ledger
+          await this.db.stock_movements.add({
+            id: movementId,
+            type: 'INITIAL_BALANCE',
+            ref_type: 'opening_stock',
+            ref_id: productId,
+            user_id: params.createdBy,
+            occurred_at: now,
+            reason: `Saldo awal saat pendaftaran produk: ${product.name}`,
+          });
+
+          await this.db.stock_movement_items.add({
+            id: this.idGen.generateId(),
+            movement_id: movementId,
+            product_id: productId,
+            batch_id: batchId || undefined,
+            qty_delta_base: initialStock,
+            unit_cost_x10k: baseUnitInput.costX10k,
+            occurred_at: now,
+          });
+        } else {
+          // Saldo stok awal 0
+          await this.db.inventory_balances.add({
+            product_id: productId,
+            batch_id: '',
+            qty_base: 0,
+            last_movement_at: now,
+          });
+        }
 
         await this.db.audit_logs.add({
           id: this.idGen.generateId(),
@@ -239,19 +300,23 @@ export class CatalogService {
           action: 'catalog.product_create',
           entity_type: 'product',
           entity_id: productId,
-          reason: `Menambah produk baru: ${product.name}`,
+          reason: `Menambah produk baru: ${product.name}${initialStock > 0 ? ` (stok awal: ${initialStock})` : ''}`,
         });
       }
     );
 
     const category = await this.db.categories.get(params.categoryId);
 
+    const initialStock = params.initialStockBase && params.initialStockBase > 0
+      ? assertQuantity(params.initialStockBase)
+      : 0;
+
     return {
       product,
       category,
       units: productUnits,
       barcodes: productBarcodes,
-      totalStockBase: 0,
+      totalStockBase: initialStock,
     };
   }
 
@@ -285,9 +350,30 @@ export class CatalogService {
       }
     }
 
+    // Validasi keunikan barcode baru jika disediakan (tidak boleh dipakai produk lain)
+    if (params.barcodes && params.barcodes.length > 0) {
+      for (const b of params.barcodes) {
+        const cleanCode = b.barcode.trim();
+        if (!cleanCode) continue;
+
+        const existingBarcode = await this.db.product_barcodes.where('barcode').equals(cleanCode).first();
+        if (existingBarcode && existingBarcode.product_id !== params.id) {
+          const ownerProduct = await this.db.products.get(existingBarcode.product_id);
+          const ownerName = ownerProduct ? ownerProduct.name : 'produk lain';
+          throw new Error(`Barcode '${cleanCode}' sudah dipakai oleh produk '${ownerName}'`);
+        }
+      }
+    }
+
     await this.db.transaction(
       'rw',
-      [this.db.products, this.db.product_units, this.db.price_history, this.db.audit_logs],
+      [
+        this.db.products,
+        this.db.product_units,
+        this.db.product_barcodes,
+        this.db.price_history,
+        this.db.audit_logs,
+      ],
       async () => {
         const updateData: Partial<Product> = {
           updated_at: now,
@@ -303,18 +389,70 @@ export class CatalogService {
 
         await this.db.products.update(params.id, updateData);
 
-        // Update units jika disediakan
+        // Peta unit_code -> unitId untuk asosiasi barcode
+        const unitIdMap = new Map<string, string>();
+        for (const u of existing.units) {
+          unitIdMap.set(u.unit_code, u.id);
+        }
+
+        // Update units yang ada dan tambah units baru jika disediakan
         if (params.units) {
           for (const u of params.units) {
             const matched = existing.units.find((ou) => ou.unit_code === u.unitCode);
             if (matched) {
               await this.db.product_units.update(matched.id, {
+                name: u.name.trim(),
+                conversion_factor: u.conversionFactor,
                 price: assertMoney(u.price),
                 cost_x10k: u.costX10k,
                 updated_at: now,
                 updated_by: params.updatedBy,
               });
+              unitIdMap.set(u.unitCode, matched.id);
+            } else {
+              // Satuan kemasan baru (misal: tambah Dus pada produk yang sudah ada)
+              const newUnitId = this.idGen.generateId();
+              const newUnit: ProductUnit = {
+                id: newUnitId,
+                product_id: params.id,
+                unit_code: u.unitCode.trim(),
+                name: u.name.trim(),
+                conversion_factor: u.conversionFactor,
+                price: assertMoney(u.price),
+                cost_x10k: u.costX10k,
+                is_base: u.isBase || u.conversionFactor === 1 ? 1 : 0,
+                active: 1,
+                created_at: now,
+                created_by: params.updatedBy,
+                updated_at: now,
+                updated_by: params.updatedBy,
+              };
+              await this.db.product_units.add(newUnit);
+              unitIdMap.set(u.unitCode, newUnitId);
             }
+          }
+        }
+
+        // Sinkronisasi barcode jika disediakan
+        if (params.barcodes !== undefined) {
+          // Hapus barcode lama milik produk ini
+          await this.db.product_barcodes.where('product_id').equals(params.id).delete();
+
+          // Masukkan barcode yang aktif dan kaitkan dengan product_unit_id yang tepat
+          for (const b of params.barcodes) {
+            const cleanCode = b.barcode.trim();
+            if (!cleanCode) continue;
+
+            const unitId = unitIdMap.get(b.unitCode) || existing.units[0]?.id;
+            if (!unitId) continue;
+
+            await this.db.product_barcodes.add({
+              id: this.idGen.generateId(),
+              product_id: params.id,
+              product_unit_id: unitId,
+              barcode: cleanCode,
+              created_at: now,
+            });
           }
         }
 

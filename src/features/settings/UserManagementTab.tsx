@@ -162,7 +162,7 @@ export const UserManagementTab: React.FC<UserManagementTabProps> = ({ settingsSe
 
         {/* Table Content */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full min-w-[600px] text-left text-xs">
             <thead className="bg-muted/60 border-b border-border text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
               <tr>
                 <th className="px-4 py-3">Nama Pengguna</th>

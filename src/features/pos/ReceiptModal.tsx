@@ -140,9 +140,17 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                 <span className="text-stone-900">{formatRupiah(sale.total)}</span>
               </div>
               <div className="flex justify-between pt-1">
-                <span>Bayar ({payment.method === 'cash' ? 'Tunai' : 'Non-Tunai'})</span>
+                <span>
+                  Bayar ({payment.method === 'cash' ? 'Tunai' : (payment.reference_no?.startsWith('QRIS') ? 'QRIS' : payment.reference_no?.startsWith('Transfer') ? 'Transfer Bank' : 'Non-Tunai')})
+                </span>
                 <span>{formatRupiah(payment.amount)}</span>
               </div>
+              {payment.reference_no && (
+                <div className="flex justify-between text-[10px] text-stone-600">
+                  <span>Ref:</span>
+                  <span className="font-mono">{payment.reference_no}</span>
+                </div>
+              )}
               <div className="flex justify-between font-bold">
                 <span>Kembalian</span>
                 <span className="text-emerald-800">{formatRupiah(change)}</span>

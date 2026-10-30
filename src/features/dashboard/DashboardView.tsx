@@ -53,7 +53,15 @@ export const DashboardView: React.FC = () => {
 
   // Live Data States
   const [salesSummary, setSalesSummary] = useState<SalesReportSummary | null>(null);
-  const [hourlyBuckets, setHourlyBuckets] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
+  const [timelinePoints, setTimelinePoints] = useState<{ label: string; value: number }[]>([
+    { label: '08:00', value: 0 },
+    { label: '10:00', value: 0 },
+    { label: '12:00', value: 0 },
+    { label: '14:00', value: 0 },
+    { label: '16:00', value: 0 },
+    { label: '18:00', value: 0 },
+    { label: '20:00+', value: 0 },
+  ]);
   const [activeSession, setActiveSession] = useState<{ session: CashierSession; cashierName: string } | null>(null);
   const [valuationData, setValuationData] = useState<{
     items: InventoryValuationItem[];
@@ -119,23 +127,103 @@ export const DashboardView: React.FC = () => {
       const salesResult = await reportService.getSalesReport(queryStart, queryEnd);
       setSalesSummary(salesResult.summary);
 
-      // 2. Hourly distribution for today
-      const todaySales = await db.sales
-        .filter((s) => s.completed_at >= startOfToday && s.completed_at <= endOfToday && s.status !== 'voided')
-        .toArray();
+      // 2. Timeline points distribution based on activeTab
+      if (activeTab === 'today') {
+        const todaySales = await db.sales
+          .filter((s) => s.completed_at >= startOfToday && s.completed_at <= endOfToday && s.status !== 'voided')
+          .toArray();
 
-      const buckets = [0, 0, 0, 0, 0, 0, 0]; // 08-10, 10-12, 12-14, 14-16, 16-18, 18-20, 20-22
-      todaySales.forEach((s) => {
-        const hour = new Date(s.completed_at).getHours();
-        if (hour >= 8 && hour < 10) buckets[0] = (buckets[0] ?? 0) + s.total;
-        else if (hour >= 10 && hour < 12) buckets[1] = (buckets[1] ?? 0) + s.total;
-        else if (hour >= 12 && hour < 14) buckets[2] = (buckets[2] ?? 0) + s.total;
-        else if (hour >= 14 && hour < 16) buckets[3] = (buckets[3] ?? 0) + s.total;
-        else if (hour >= 16 && hour < 18) buckets[4] = (buckets[4] ?? 0) + s.total;
-        else if (hour >= 18 && hour < 20) buckets[5] = (buckets[5] ?? 0) + s.total;
-        else if (hour >= 20) buckets[6] = (buckets[6] ?? 0) + s.total;
-      });
-      setHourlyBuckets(buckets);
+        const buckets = [0, 0, 0, 0, 0, 0, 0]; // 08-10, 10-12, 12-14, 14-16, 16-18, 18-20, 20-22
+        todaySales.forEach((s) => {
+          const hour = new Date(s.completed_at).getHours();
+          if (hour >= 8 && hour < 10) buckets[0] = (buckets[0] ?? 0) + s.total;
+          else if (hour >= 10 && hour < 12) buckets[1] = (buckets[1] ?? 0) + s.total;
+          else if (hour >= 12 && hour < 14) buckets[2] = (buckets[2] ?? 0) + s.total;
+          else if (hour >= 14 && hour < 16) buckets[3] = (buckets[3] ?? 0) + s.total;
+          else if (hour >= 16 && hour < 18) buckets[4] = (buckets[4] ?? 0) + s.total;
+          else if (hour >= 18 && hour < 20) buckets[5] = (buckets[5] ?? 0) + s.total;
+          else if (hour >= 20) buckets[6] = (buckets[6] ?? 0) + s.total;
+        });
+
+        const labels = ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00+'];
+        setTimelinePoints(labels.map((lbl, idx) => ({ label: lbl, value: buckets[idx] ?? 0 })));
+      } else if (activeTab === '7days') {
+        const recentSales = await db.sales
+          .filter((s) => s.completed_at >= queryStart && s.completed_at <= queryEnd && s.status !== 'voided')
+          .toArray();
+
+        const days: { label: string; value: number }[] = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(todayDate.getTime() - i * 86400000);
+          const startMs = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0).getTime();
+          const endMs = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999).getTime();
+          const label = i === 0 ? 'Hari Ini' : `${d.getDate()} ${d.toLocaleDateString('id-ID', { month: 'short' })}`;
+
+          const daySales = recentSales.filter((s) => s.completed_at >= startMs && s.completed_at <= endMs);
+          const totalVal = daySales.reduce((sum, s) => sum + s.total, 0);
+          days.push({ label, value: totalVal });
+        }
+        setTimelinePoints(days);
+      } else if (activeTab === 'month') {
+        const monthSales = await db.sales
+          .filter((s) => s.completed_at >= queryStart && s.completed_at <= queryEnd && s.status !== 'voided')
+          .toArray();
+
+        // 6 interval 5-harian
+        const intervals: { label: string; value: number }[] = [];
+        for (let i = 5; i >= 0; i--) {
+          const endDaysAgo = i * 5;
+          const startDaysAgo = endDaysAgo + 4;
+          const startMs = new Date(todayDate.getTime() - startDaysAgo * 86400000).setHours(0, 0, 0, 0);
+          const endMs = new Date(todayDate.getTime() - endDaysAgo * 86400000).setHours(23, 59, 59, 999);
+
+          const dStart = new Date(startMs);
+          const dEnd = new Date(endMs);
+          const label =
+            i === 0
+              ? `${dStart.getDate()} - Hari Ini`
+              : `${dStart.getDate()}/${dStart.getMonth() + 1} - ${dEnd.getDate()}/${dEnd.getMonth() + 1}`;
+
+          const intervalSales = monthSales.filter((s) => s.completed_at >= startMs && s.completed_at <= endMs);
+          const totalVal = intervalSales.reduce((sum, s) => sum + s.total, 0);
+          intervals.push({ label, value: totalVal });
+        }
+        setTimelinePoints(intervals);
+      } else if (activeTab === 'all') {
+        const allSales = await db.sales.filter((s) => s.status !== 'voided').toArray();
+
+        if (allSales.length === 0) {
+          setTimelinePoints([
+            { label: 'Bln 1', value: 0 },
+            { label: 'Bln 2', value: 0 },
+            { label: 'Bln 3', value: 0 },
+            { label: 'Bln 4', value: 0 },
+            { label: 'Bln 5', value: 0 },
+            { label: 'Bulan Ini', value: 0 },
+          ]);
+        } else {
+          const monthMap = new Map<string, { label: string; value: number }>();
+          allSales.forEach((s) => {
+            const d = new Date(s.completed_at);
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            const monthLabel = d.toLocaleDateString('id-ID', { month: 'short', year: '2-digit' });
+            const item = monthMap.get(key) || { label: monthLabel, value: 0 };
+            item.value += s.total;
+            monthMap.set(key, item);
+          });
+
+          const sortedKeys = Array.from(monthMap.keys()).sort();
+          const recentKeys = sortedKeys.slice(-6);
+          if (recentKeys.length === 1) {
+            setTimelinePoints([
+              { label: 'Awal', value: 0 },
+              monthMap.get(recentKeys[0]!)!,
+            ]);
+          } else {
+            setTimelinePoints(recentKeys.map((k) => monthMap.get(k)!));
+          }
+        }
+      }
 
       // 3. Active Cashier Session
       const currentActiveSession = await sessionService.getActiveSession();
@@ -343,16 +431,17 @@ export const DashboardView: React.FC = () => {
   }, [loadDashboardData]);
 
   // SVG Area Chart points calculation
-  const maxBucket = Math.max(...hourlyBuckets, 1);
+  const maxVal = Math.max(...timelinePoints.map((p) => p.value), 1);
   const chartPoints = useMemo(() => {
-    const xStep = 600 / 6;
-    return hourlyBuckets.map((val, idx) => {
+    const totalPoints = timelinePoints.length;
+    const xStep = totalPoints > 1 ? 600 / (totalPoints - 1) : 600;
+    return timelinePoints.map((pt, idx) => {
       const x = idx * xStep;
       // Range: 140 (bottom) down to 20 (top)
-      const y = 140 - (val / maxBucket) * 115;
-      return { x, y, val };
+      const y = 140 - (pt.value / maxVal) * 115;
+      return { x, y, val: pt.value, label: pt.label };
     });
-  }, [hourlyBuckets, maxBucket]);
+  }, [timelinePoints, maxVal]);
 
   const svgPathD = useMemo(() => {
     if (chartPoints.length === 0) return 'M 0,140 L 600,140';
@@ -526,7 +615,9 @@ export const DashboardView: React.FC = () => {
                     {/* Titik data */}
                     {chartPoints.map((pt, i) => (
                       <g key={i}>
-                        <circle cx={pt.x} cy={pt.y} r={pt.val > 0 ? 4 : 2} fill="#14463C" />
+                        <circle cx={pt.x} cy={pt.y} r={pt.val > 0 ? 4 : 2} fill="#14463C">
+                          <title>{`${pt.label}: ${formatRupiah(pt.val)}`}</title>
+                        </circle>
                         {pt.val > 0 && (
                           <circle cx={pt.x} cy={pt.y} r={7} fill="#14463C" fillOpacity={0.2} />
                         )}
@@ -534,15 +625,13 @@ export const DashboardView: React.FC = () => {
                     ))}
                   </svg>
 
-                  {/* Label Waktu Bawah */}
+                  {/* Label Waktu Bawah Dinamis */}
                   <div className="flex justify-between text-[11px] text-muted-foreground mt-2 font-medium">
-                    <span>08:00</span>
-                    <span>10:00</span>
-                    <span>12:00</span>
-                    <span>14:00</span>
-                    <span>16:00</span>
-                    <span>18:00</span>
-                    <span>20:00+</span>
+                    {timelinePoints.map((pt, i) => (
+                      <span key={i} className="text-center truncate px-0.5">
+                        {pt.label}
+                      </span>
+                    ))}
                   </div>
                 </>
               )}
@@ -649,7 +738,7 @@ export const DashboardView: React.FC = () => {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
+                <table className="w-full min-w-[600px] text-left text-sm">
                   <thead>
                     <tr className="border-b border-border text-xs text-muted-foreground">
                       <th className="pb-3 font-semibold">Produk / Item</th>

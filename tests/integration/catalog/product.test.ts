@@ -208,4 +208,48 @@ describe('Service: CatalogService & Product (FR-CAT-01..05, AC-01, AC-10, AC-38,
     expect(found?.product.name).toBe('Kopi Kapal Api Special 65g');
     expect(found?.unit.price).toBe(6500);
   });
+
+  it('GAP-04: dapat mengaktifkan kembali produk yang diarsipkan sehingga muncul lagi di katalog kasir', async () => {
+    const created = await catalogService.createProduct({
+      name: 'Garam Beryodium 250g',
+      categoryId,
+      baseUnitKind: 'count',
+      baseUnitCode: 'pcs',
+      createdBy: 'owner-1',
+      units: [
+        {
+          unitCode: 'pcs',
+          name: 'Bungkus',
+          conversionFactor: 1,
+          price: 3000,
+          costX10k: 20000000,
+          isBase: true,
+        },
+      ],
+    });
+
+    // 1. Arsipkan produk
+    await catalogService.archiveProduct(created.product.id, 'owner-1');
+    let p = await db.products.get(created.product.id);
+    expect(p?.active).toBe(0);
+
+    // Produk tidak muncul di list default (activeOnly = true)
+    let activeList = await catalogService.listProducts();
+    expect(activeList.some((it) => it.product.id === created.product.id)).toBe(false);
+
+    // 2. Aktifkan kembali
+    await catalogService.updateProduct({
+      id: created.product.id,
+      active: 1,
+      updatedBy: 'owner-1',
+    });
+
+    p = await db.products.get(created.product.id);
+    expect(p?.active).toBe(1);
+
+    // Muncul kembali di list produk aktif
+    activeList = await catalogService.listProducts();
+    expect(activeList.some((it) => it.product.id === created.product.id)).toBe(true);
+  });
 });
+

@@ -133,7 +133,7 @@ export interface InventoryBalance {
 
 export interface StockMovement {
   id: string;
-  type: 'RECEIPT' | 'SALE' | 'SALE_VOID' | 'CUSTOMER_RETURN' | 'DAMAGE_SPOILAGE' | 'INTERNAL_USE' | 'COUNT_ADJUSTMENT' | 'INITIAL_BALANCE' | 'STOCKTAKE_ADJUSTMENT' | 'REVERSAL';
+  type: 'RECEIPT' | 'SALE' | 'SALE_VOID' | 'CUSTOMER_RETURN' | 'RETURN_WRITE_OFF' | 'DAMAGE_SPOILAGE' | 'INTERNAL_USE' | 'COUNT_ADJUSTMENT' | 'INITIAL_BALANCE' | 'STOCKTAKE_ADJUSTMENT' | 'REVERSAL';
   occurred_at: number;
   ref_type?: string;
   ref_id?: string;
@@ -234,7 +234,9 @@ export interface ReturnItem {
   sale_item_id: string;
   qty_base: number;
   refund_amount: number;
+  condition?: 'sellable' | 'damaged' | 'expired';
 }
+
 
 export interface GoodsReceipt {
   id: string;

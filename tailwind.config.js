@@ -38,18 +38,22 @@ export default {
         destructive: {
           DEFAULT: 'var(--destructive)',
           foreground: 'var(--destructive-text)',
+          text: 'var(--destructive-text)',
         },
         success: {
           DEFAULT: 'var(--success)',
           foreground: 'var(--success-text)',
+          text: 'var(--success-text)',
         },
         warning: {
           DEFAULT: 'var(--warning)',
           foreground: 'var(--warning-text)',
+          text: 'var(--warning-text)',
         },
         info: {
           DEFAULT: 'var(--info)',
           foreground: 'var(--info-text)',
+          text: 'var(--info-text)',
         },
         tint: {
           green: 'var(--tint-green)',
@@ -72,6 +76,8 @@ export default {
         sm: 'calc(var(--radius) - 4px)',
         card: 'var(--radius-card)',
         pill: 'var(--radius-pill)',
+        button: 'var(--radius-pill)',
+        input: 'var(--radius)',
       },
       fontFamily: {
         serif: ['Fraunces', 'Newsreader', 'Georgia', 'serif'],

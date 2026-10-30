@@ -10,6 +10,7 @@ export interface StoreSettings {
   maxDiscountPercent: number;
   autoLockMinutes: number;
   expiryWarningDays: number;
+  returnDaysLimit: number;
 }
 
 export interface UserItem {
@@ -31,6 +32,7 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   maxDiscountPercent: 5,
   autoLockMinutes: 15,
   expiryWarningDays: 30,
+  returnDaysLimit: 7,
 };
 
 export class SettingsService {

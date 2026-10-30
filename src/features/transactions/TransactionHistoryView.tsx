@@ -9,6 +9,8 @@ import {
   Undo2,
   Lock,
   ChevronDown,
+  Info,
+  History,
 } from 'lucide-react';
 import { db, type Sale, type SaleItem, type Payment } from '@/data/db';
 import { InventoryService } from '@/services/inventory.service';
@@ -25,7 +27,7 @@ interface TransactionRow {
 }
 
 export const TransactionHistoryView: React.FC = () => {
-  const { currentUser } = useAuthStore();
+  const { currentUser, activeSession } = useAuthStore();
   const inventoryService = useMemo(() => new InventoryService(db), []);
   const checkoutService = useMemo(() => new CheckoutService(db, inventoryService), [inventoryService]);
 
@@ -34,6 +36,7 @@ export const TransactionHistoryView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<'today' | '7days' | 'all'>('today');
+  const [returnDaysLimit, setReturnDaysLimit] = useState(7);
 
   // Modals
   const [selectedSaleDetail, setSelectedSaleDetail] = useState<{
@@ -41,6 +44,17 @@ export const TransactionHistoryView: React.FC = () => {
     items: SaleItem[];
     payment?: Payment;
     cashierName: string;
+    returns: Array<{
+      ret: any;
+      items: Array<{
+        id: string;
+        qty_base: number;
+        condition?: 'sellable' | 'damaged' | 'expired';
+        productName: string;
+        unitCode: string;
+        factor: number;
+      }>;
+    }>;
   } | null>(null);
 
   // Void modal state
@@ -51,8 +65,12 @@ export const TransactionHistoryView: React.FC = () => {
   const [isVoiding, setIsVoiding] = useState(false);
 
   // Return modal state
-  const [returnTargetSale, setReturnTargetSale] = useState<{ sale: Sale; items: SaleItem[] } | null>(null);
+  const [returnTargetSale, setReturnTargetSale] = useState<{
+    sale: Sale;
+    items: (SaleItem & { maxReturnableQty: number })[];
+  } | null>(null);
   const [returnSelections, setReturnSelections] = useState<Record<string, number>>({});
+  const [returnConditions, setReturnConditions] = useState<Record<string, 'sellable' | 'damaged' | 'expired'>>({});
   const [returnReason, setReturnReason] = useState('');
   const [returnError, setReturnError] = useState<string | null>(null);
   const [isReturning, setIsReturning] = useState(false);
@@ -90,7 +108,26 @@ export const TransactionHistoryView: React.FC = () => {
 
   useEffect(() => {
     loadTransactions();
+    const loadSettings = async () => {
+      const s = await db.app_settings.get('store_settings');
+      if (s) {
+        try {
+          const parsed = JSON.parse(s.value_json);
+          if (typeof parsed.returnDaysLimit === 'number') {
+            setReturnDaysLimit(parsed.returnDaysLimit);
+          }
+        } catch {}
+      }
+    };
+    loadSettings();
   }, []);
+
+  const isPastReturnLimit = (sale: Sale) => {
+    if (returnDaysLimit <= 0) return false;
+    const elapsedMs = Date.now() - sale.completed_at;
+    const elapsedDays = Math.floor(elapsedMs / (24 * 60 * 60 * 1000));
+    return elapsedDays > returnDaysLimit;
+  };
 
   const showNotification = (type: 'success' | 'error', message: string) => {
     setNotification({ type, message });
@@ -134,7 +171,30 @@ export const TransactionHistoryView: React.FC = () => {
   const handleOpenDetail = async (sale: Sale, cashierName: string) => {
     const items = await db.sale_items.where('sale_id').equals(sale.id).toArray();
     const payment = await db.payments.where('sale_id').equals(sale.id).first();
-    setSelectedSaleDetail({ sale, items, payment, cashierName });
+    const saleReturns = await db.returns.where('original_sale_id').equals(sale.id).toArray();
+    const returnDetails = await Promise.all(
+      saleReturns.map(async (ret) => {
+        const retItems = await db.return_items.where('return_id').equals(ret.id).toArray();
+        const enrichedItems = retItems.map((ri) => {
+          const match = items.find((it) => it.id === ri.sale_item_id);
+          return {
+            ...ri,
+            productName: match?.name_snapshot || 'Barang',
+            unitCode: match?.unit_code_snapshot || 'pcs',
+            factor: match?.factor_snapshot || 1,
+          };
+        });
+        return { ret, items: enrichedItems };
+      })
+    );
+
+    setSelectedSaleDetail({
+      sale,
+      items,
+      payment,
+      cashierName,
+      returns: returnDetails,
+    });
   };
 
   // Void execution (requires Supervisor/Owner authorization)
@@ -179,6 +239,7 @@ export const TransactionHistoryView: React.FC = () => {
         saleId: voidTargetSale.id,
         voidedBy: supervisorUser.id,
         voidReason: voidReason.trim(),
+        currentSessionId: activeSession?.id,
       });
 
       showNotification('success', `Transaksi #${voidTargetSale.receipt_no} berhasil dibatalkan (void)`);
@@ -200,13 +261,44 @@ export const TransactionHistoryView: React.FC = () => {
   // Open return modal
   const handleOpenReturnModal = async (sale: Sale) => {
     const items = await db.sale_items.where('sale_id').equals(sale.id).toArray();
-    setReturnTargetSale({ sale, items });
+    const existingReturns = await db.returns.where('original_sale_id').equals(sale.id).toArray();
+    const existingReturnIds = existingReturns.map((r) => r.id);
+    const existingReturnItems = existingReturnIds.length > 0
+      ? await db.return_items.where('return_id').anyOf(existingReturnIds).toArray()
+      : [];
+
+    const itemsWithMax = items.map((it) => {
+      const prevReturnedBase = existingReturnItems
+        .filter((ri) => ri.sale_item_id === it.id)
+        .reduce((sum, ri) => sum + ri.qty_base, 0);
+      const maxReturnableBase = Math.max(0, it.qty_base - prevReturnedBase);
+      const maxReturnableQty = Math.floor(maxReturnableBase / it.factor_snapshot);
+      return { ...it, maxReturnableQty };
+    });
+
+    setReturnTargetSale({ sale, items: itemsWithMax });
     setReturnSelections({});
+    setReturnConditions({});
     setReturnReason('');
     setReturnError(null);
   };
 
-  // Confirm return execution (AC-08)
+  // Computed live refund total
+  const computedRefundTotal = useMemo(() => {
+    if (!returnTargetSale) return 0;
+    let total = 0;
+    for (const [saleItemId, returnQty] of Object.entries(returnSelections)) {
+      if (returnQty > 0) {
+        const item = returnTargetSale.items.find((it) => it.id === saleItemId);
+        if (item) {
+          total += Math.floor((returnQty * item.unit_price_snapshot) / item.factor_snapshot);
+        }
+      }
+    }
+    return total;
+  }, [returnTargetSale, returnSelections]);
+
+  // Confirm return execution (AC-08, BR-18, BR-19, AC-28)
   const handleConfirmReturn = async () => {
     if (!returnTargetSale || !currentUser) return;
     if (!returnReason.trim()) {
@@ -214,17 +306,25 @@ export const TransactionHistoryView: React.FC = () => {
       return;
     }
 
-    const returnItemsInput: { saleItemId: string; qtyBase: number; refundAmount: number }[] = [];
+    const returnItemsInput: {
+      saleItemId: string;
+      qtyBase: number;
+      refundAmount: number;
+      condition: 'sellable' | 'damaged' | 'expired';
+    }[] = [];
+
     for (const [saleItemId, returnQty] of Object.entries(returnSelections)) {
       if (returnQty > 0) {
         const item = returnTargetSale.items.find((it) => it.id === saleItemId);
         if (item) {
           const unitPrice = item.unit_price_snapshot;
           const refund = Math.floor((returnQty * unitPrice) / item.factor_snapshot);
+          const cond = returnConditions[saleItemId] || 'sellable';
           returnItemsInput.push({
             saleItemId,
             qtyBase: returnQty * item.factor_snapshot,
             refundAmount: refund,
+            condition: cond,
           });
         }
       }
@@ -276,9 +376,9 @@ export const TransactionHistoryView: React.FC = () => {
       {/* Unified Table Card */}
       <div className="bg-card border border-border rounded-card shadow-sm overflow-hidden">
         {/* Card Header Toolbar */}
-        <div className="p-4 border-b border-border flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-card">
+        <div className="p-4 border-b border-border flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-card">
           {/* Search Input */}
-          <div className="relative flex-1 sm:max-w-xs min-w-[220px]">
+          <div className="relative flex-1 min-w-[200px]">
             <Search className="size-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
@@ -362,7 +462,7 @@ export const TransactionHistoryView: React.FC = () => {
               <p className="text-xs text-muted-foreground mt-0.5">Coba sesuaikan filter pencarian atau periode tanggal</p>
             </div>
           ) : (
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left text-xs min-w-[700px]">
               <thead className="bg-muted/60 border-b border-border text-muted-foreground uppercase tracking-wider font-semibold text-[11px]">
                 <tr>
                   <th className="px-5 py-3.5">No. Struk</th>
@@ -390,7 +490,11 @@ export const TransactionHistoryView: React.FC = () => {
                       <td className="px-4 py-3.5 font-medium text-foreground">{t.cashierName}</td>
                       <td className="px-4 py-3.5">
                         <span className="capitalize text-muted-foreground">
-                          {t.payment?.method === 'cash' ? 'Tunai' : 'Non-Tunai'}
+                          {t.payment?.method === 'cash'
+                            ? 'Tunai'
+                            : t.payment?.reference_no
+                            ? t.payment.reference_no.split(' - ')[0]
+                            : 'Non-Tunai'}
                         </span>
                       </td>
                       <td className="px-4 py-3.5 text-right font-bold font-mono text-foreground">
@@ -426,27 +530,46 @@ export const TransactionHistoryView: React.FC = () => {
                         </button>
 
                         {t.sale.status === 'completed' && (
-                          <>
-                            <button
-                              onClick={() => {
-                                setVoidTargetSale(t.sale);
-                                setVoidPin('');
-                                setVoidReason('');
-                                setVoidError(null);
-                              }}
-                              className="px-2.5 py-1 rounded-pill border border-destructive/30 bg-destructive/10 hover:bg-destructive/20 text-destructive-text text-xs font-semibold transition-colors"
-                              title="Batalkan Transaksi (Void)"
-                            >
-                              Void
-                            </button>
-                            <button
-                              onClick={() => handleOpenReturnModal(t.sale)}
-                              className="px-2.5 py-1 rounded-pill border border-warning/40 bg-warning/20 hover:bg-warning/30 text-warning-text text-xs font-semibold transition-colors"
-                              title="Retur Barang"
-                            >
-                              Retur
-                            </button>
-                          </>
+                          <button
+                            onClick={() => {
+                              setVoidTargetSale(t.sale);
+                              setVoidPin('');
+                              setVoidReason('');
+                              setVoidError(null);
+                            }}
+                            disabled={t.sale.session_id !== activeSession?.id}
+                            className={`px-2.5 py-1 rounded-pill border text-xs font-semibold transition-colors ${
+                              t.sale.session_id === activeSession?.id
+                                ? 'border-destructive/30 bg-destructive/10 hover:bg-destructive/20 text-destructive-text'
+                                : 'opacity-40 cursor-not-allowed border-stone-200 bg-stone-100 text-stone-400'
+                            }`}
+                            title={
+                              t.sale.session_id === activeSession?.id
+                                ? 'Batalkan Transaksi (Void)'
+                                : 'Sesi kasir sudah ditutup. Gunakan Retur untuk pengembalian barang.'
+                            }
+                          >
+                            Void
+                          </button>
+                        )}
+
+                        {(t.sale.status === 'completed' || t.sale.status === 'partially_returned') && (
+                          <button
+                            onClick={() => handleOpenReturnModal(t.sale)}
+                            disabled={isPastReturnLimit(t.sale)}
+                            className={`px-2.5 py-1 rounded-pill border text-xs font-semibold transition-colors ${
+                              !isPastReturnLimit(t.sale)
+                                ? 'border-warning/40 bg-warning/20 hover:bg-warning/30 text-warning-text'
+                                : 'opacity-40 cursor-not-allowed border-stone-200 bg-stone-100 text-stone-400'
+                            }`}
+                            title={
+                              !isPastReturnLimit(t.sale)
+                                ? 'Retur Barang Pelanggan'
+                                : `Batas waktu retur (${returnDaysLimit} hari) telah terlampaui`
+                            }
+                          >
+                            Retur
+                          </button>
                         )}
                       </td>
                     </tr>
@@ -463,7 +586,7 @@ export const TransactionHistoryView: React.FC = () => {
       {/* ======================================================== */}
       {selectedSaleDetail && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden flex flex-col max-h-[90vh]">
             <div className="bg-[#14463C] text-white p-5 flex items-center justify-between">
               <div>
                 <h3 className="font-serif font-bold text-lg">Struk #{selectedSaleDetail.sale.receipt_no}</h3>
@@ -511,18 +634,98 @@ export const TransactionHistoryView: React.FC = () => {
                     <span>{formatRupiah(selectedSaleDetail.sale.total)}</span>
                   </div>
                   <div className="flex justify-between text-stone-600 pt-1">
-                    <span>Bayar ({selectedSaleDetail.payment?.method === 'cash' ? 'Tunai' : 'Non-Tunai'})</span>
+                    <span>
+                      Bayar ({selectedSaleDetail.payment?.method === 'cash' ? 'Tunai' : (selectedSaleDetail.payment?.reference_no || 'Non-Tunai')})
+                    </span>
                     <span>{formatRupiah(selectedSaleDetail.payment?.amount || selectedSaleDetail.sale.total)}</span>
                   </div>
+                  {selectedSaleDetail.payment?.reference_no && (
+                    <div className="flex justify-between text-[11px] text-stone-500">
+                      <span>Referensi Pembayaran</span>
+                      <span className="font-mono">{selectedSaleDetail.payment.reference_no}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {selectedSaleDetail.sale.status === 'voided' && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800">
-                  <span className="font-bold">Transaksi ini telah dibatalkan (Void).</span>
-                  <p className="mt-0.5 text-stone-600">Alasan: {selectedSaleDetail.sale.void_reason || 'Tidak ada catatan'}</p>
+              {/* GAP-08: Visual Audit Timeline per Transaksi */}
+              <div className="bg-white p-4 rounded-xl border border-stone-200 space-y-3">
+                <div className="flex items-center gap-2">
+                  <History className="w-4 h-4 text-[#14463C]" />
+                  <span className="text-[11px] font-bold text-stone-500 uppercase tracking-wider">
+                    Kronologi & Audit Transaksi
+                  </span>
                 </div>
-              )}
+
+                <div className="relative pl-6 space-y-4 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-stone-200">
+                  {/* Event 1: Transaksi Selesai */}
+                  <div className="relative">
+                    <div className="absolute -left-6 top-0.5 size-4 rounded-full bg-emerald-600 border-2 border-white flex items-center justify-center text-[9px] text-white">
+                      ✓
+                    </div>
+                    <div className="text-xs font-semibold text-stone-800">
+                      Transaksi Selesai Diposting
+                    </div>
+                    <div className="text-[11px] text-stone-500">
+                      {new Date(selectedSaleDetail.sale.completed_at || selectedSaleDetail.sale.created_at).toLocaleString('id-ID')} • Kasir: {selectedSaleDetail.cashierName}
+                    </div>
+                  </div>
+
+                  {/* Event 2: Riwayat Retur (jika ada) */}
+                  {selectedSaleDetail.returns && selectedSaleDetail.returns.length > 0 && selectedSaleDetail.returns.map(({ ret, items }) => (
+                    <div key={ret.id} className="relative">
+                      <div className="absolute -left-6 top-0.5 size-4 rounded-full bg-amber-500 border-2 border-white flex items-center justify-center text-[9px] text-white">
+                        ↩
+                      </div>
+                      <div className="text-xs font-semibold text-amber-900">
+                        Retur Barang Pelanggan #{ret.receipt_no}
+                      </div>
+                      <div className="text-[11px] text-stone-500">
+                        {new Date(ret.created_at).toLocaleString('id-ID')} • Pengembalian Dana: <strong className="text-amber-800">{formatRupiah(ret.refund_total)}</strong>
+                      </div>
+                      <div className="text-[11px] text-stone-600 italic mt-0.5">
+                        Alasan: &ldquo;{ret.reason || 'Tidak ada catatan'}&rdquo;
+                      </div>
+                      <div className="mt-1 space-y-1">
+                        {items.map((ri) => (
+                          <div key={ri.id} className="text-[11px] text-stone-700 flex items-center gap-1.5 bg-stone-50 px-2 py-1 rounded">
+                            <span>• {ri.productName} ({ri.qty_base / (ri.factor || 1)} {ri.unitCode})</span>
+                            <span className={`px-1.5 py-0.2 rounded text-[9px] font-semibold ${
+                              ri.condition === 'sellable'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-rose-100 text-rose-800'
+                            }`}>
+                              {ri.condition === 'sellable'
+                                ? '✓ Layak Jual (Kembali ke Stok)'
+                                : ri.condition === 'expired'
+                                ? '⏱ Kedaluwarsa (Pemusnahan)'
+                                : '✕ Rusak/Cacat (Pemusnahan)'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Event 3: Void (jika status voided) */}
+                  {selectedSaleDetail.sale.status === 'voided' && (
+                    <div className="relative">
+                      <div className="absolute -left-6 top-0.5 size-4 rounded-full bg-rose-600 border-2 border-white flex items-center justify-center text-[9px] text-white">
+                        ✕
+                      </div>
+                      <div className="text-xs font-semibold text-rose-800">
+                        Transaksi Dibatalkan (Void)
+                      </div>
+                      <div className="text-[11px] text-stone-600 mt-0.5">
+                        Alasan: &ldquo;{selectedSaleDetail.sale.void_reason || 'Tidak ada catatan'}&rdquo;
+                      </div>
+                      <div className="text-[10px] text-stone-500 mt-0.5">
+                        Seluruh saldo stok barang telah dipulihkan otomatis ke inventaris via SALE_VOID movement.
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="p-4 bg-white border-t border-stone-200 flex gap-2">
@@ -599,7 +802,7 @@ export const TransactionHistoryView: React.FC = () => {
       )}
 
       {/* ======================================================== */}
-      {/* MODAL: Retur Barang Pelanggan (AC-08)                    */}
+      {/* MODAL: Retur Barang Pelanggan (AC-08, BR-18, BR-19, AC-28) */}
       {/* ======================================================== */}
       {returnTargetSale && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -612,6 +815,14 @@ export const TransactionHistoryView: React.FC = () => {
               Pilih item dan kuantitas barang yang dikembalikan dari struk <strong>#{returnTargetSale.sale.receipt_no}</strong>.
             </p>
 
+            {/* Banner Aturan Stok Retur */}
+            <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900 flex items-start gap-2">
+              <Info className="size-4 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <strong>Aturan Stok:</strong> Barang <em>Layak Jual</em> akan kembali ke stok jual toko. Barang <em>Rusak/Kedaluwarsa</em> tidak menambah stok jual (dicatat sebagai kerugian/write-off).
+              </div>
+            </div>
+
             {returnError && (
               <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0" />
@@ -619,37 +830,91 @@ export const TransactionHistoryView: React.FC = () => {
               </div>
             )}
 
-            <div className="flex-1 overflow-y-auto divide-y divide-stone-100 border border-stone-200 rounded-xl p-3 bg-stone-50/50 space-y-2">
+            <div className="flex-1 overflow-y-auto divide-y divide-stone-100 border border-stone-200 rounded-xl p-3 bg-stone-50/50 space-y-3">
               {returnTargetSale.items.map((it) => {
-                const maxQty = it.qty_base / it.factor_snapshot;
+                const maxQty = it.maxReturnableQty;
                 const currentRet = returnSelections[it.id] || 0;
+                const currentCond = returnConditions[it.id] || 'sellable';
 
                 return (
-                  <div key={it.id} className="pt-2 flex items-center justify-between text-xs">
-                    <div className="flex-1">
-                      <div className="font-semibold text-stone-900">{it.name_snapshot}</div>
-                      <div className="text-[11px] text-stone-500">
-                        Maks: {maxQty} {it.unit_code_snapshot} @ {formatRupiah(it.unit_price_snapshot)}
+                  <div key={it.id} className="pt-2 text-xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="font-semibold text-stone-900">{it.name_snapshot}</div>
+                        <div className="text-[11px] text-stone-500">
+                          Sisa retur: <strong>{maxQty}</strong> {it.unit_code_snapshot} @ {formatRupiah(it.unit_price_snapshot)}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <label className="text-[10px] text-stone-500">Retur:</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max={maxQty}
+                          disabled={maxQty === 0}
+                          value={currentRet}
+                          onChange={(e) => {
+                            const val = Math.min(maxQty, Math.max(0, parseInt(e.target.value, 10) || 0));
+                            setReturnSelections((prev) => ({ ...prev, [it.id]: val }));
+                          }}
+                          className="w-16 px-2 py-1 bg-white border border-stone-300 rounded text-center font-bold disabled:opacity-40"
+                        />
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <label className="text-[10px] text-stone-500">Retur:</label>
-                      <input
-                        type="number"
-                        min="0"
-                        max={maxQty}
-                        value={currentRet}
-                        onChange={(e) => {
-                          const val = Math.min(maxQty, Math.max(0, parseInt(e.target.value, 10) || 0));
-                          setReturnSelections((prev) => ({ ...prev, [it.id]: val }));
-                        }}
-                        className="w-16 px-2 py-1 bg-white border border-stone-300 rounded text-center font-bold"
-                      />
-                    </div>
+                    {/* Selector Kondisi Barang jika item diretur */}
+                    {currentRet > 0 && (
+                      <div className="pt-2 border-t border-stone-200/60 flex flex-wrap items-center justify-between gap-2 bg-stone-100/60 p-2 rounded-lg">
+                        <span className="text-[11px] font-medium text-stone-600">Kondisi Barang:</span>
+                        <div className="flex gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setReturnConditions((prev) => ({ ...prev, [it.id]: 'sellable' }))}
+                            className={`px-2 py-0.5 rounded-pill text-[10px] font-semibold border transition-colors ${
+                              currentCond === 'sellable'
+                                ? 'bg-emerald-100 border-emerald-400 text-emerald-800 font-bold'
+                                : 'bg-white border-stone-200 text-stone-600 hover:bg-stone-50'
+                            }`}
+                          >
+                            ✓ Layak Jual
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setReturnConditions((prev) => ({ ...prev, [it.id]: 'damaged' }))}
+                            className={`px-2 py-0.5 rounded-pill text-[10px] font-semibold border transition-colors ${
+                              currentCond === 'damaged'
+                                ? 'bg-rose-100 border-rose-400 text-rose-800 font-bold'
+                                : 'bg-white border-stone-200 text-stone-600 hover:bg-stone-50'
+                            }`}
+                          >
+                            ✕ Rusak/Cacat
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setReturnConditions((prev) => ({ ...prev, [it.id]: 'expired' }))}
+                            className={`px-2 py-0.5 rounded-pill text-[10px] font-semibold border transition-colors ${
+                              currentCond === 'expired'
+                                ? 'bg-amber-100 border-amber-400 text-amber-800 font-bold'
+                                : 'bg-white border-stone-200 text-stone-600 hover:bg-stone-50'
+                            }`}
+                          >
+                            ⏱ Kedaluwarsa
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
+            </div>
+
+            {/* Live Refund Summary */}
+            <div className="flex justify-between items-center text-xs font-bold text-stone-900 pt-1 border-t border-stone-200">
+              <span>Total Pengembalian Dana:</span>
+              <span className="text-sm text-amber-700 font-mono font-bold">
+                {formatRupiah(computedRefundTotal)}
+              </span>
             </div>
 
             <div>
@@ -674,7 +939,7 @@ export const TransactionHistoryView: React.FC = () => {
               </button>
               <button
                 onClick={handleConfirmReturn}
-                disabled={isReturning || !returnReason.trim()}
+                disabled={isReturning || !returnReason.trim() || computedRefundTotal === 0}
                 className="flex-1 py-2.5 rounded-xl bg-amber-600 text-white text-xs font-bold hover:bg-amber-700 disabled:opacity-40"
               >
                 {isReturning ? 'Memproses...' : 'Proses Retur'}

@@ -228,4 +228,48 @@ describe('ReportService (FR-RPT-01..08, AC-26..31)', () => {
     expect(s.actualClosingCash).toBe(204000);
     expect(s.discrepancyCash).toBe(0); // Pas
   });
+
+  it('membangun dokumen ekspor Excel (.xls) dan PDF (A4) lengkap dengan kop toko, KPI, dan baris total (FR-RPT-08, AC-31)', () => {
+    const samplePayload = {
+      filename: 'Laporan_Penjualan_Harian_2026-10-25',
+      sheetName: 'Penjualan Harian',
+      reportTitle: 'Laporan Penjualan & Estimasi Laba Harian',
+      storeName: 'Toko Sembako Berkah',
+      storeAddress: 'Jl. Pasar Baru No. 12, Jakarta',
+      storePhone: '0812-3456-7890',
+      periodLabel: 'Bulan Ini (1 Okt - 25 Okt 2026)',
+      printedBy: 'Budi (Owner)',
+      printedAtLabel: '25 Okt 2026, 21.00',
+      kpis: [
+        { label: 'Omzet Bersih', value: 'Rp 104.000', subtext: '1 transaksi berhasil' },
+        { label: 'Estimasi Laba Kotor', value: 'Rp 18.000', subtext: 'Margin ~17%' },
+      ],
+      columns: [
+        { label: 'Tanggal', widthPx: 140, align: 'left' as const, isTextFormat: true },
+        { label: 'Omzet Bersih (Rp)', widthPx: 175, align: 'right' as const },
+      ],
+      rows: [['2026-10-25', 'Rp 104.000']],
+      footerRow: ['TOTAL (1 Hari)', 'Rp 104.000'],
+    };
+
+    const excelHtml = reportService.buildReportExcelHtml(samplePayload);
+    expect(excelHtml).toContain('<x:ExcelWorkbook>');
+    expect(excelHtml).toContain('mso-width-source:userset');
+    expect(excelHtml).toContain('TOKO SEMBAKO BERKAH');
+    expect(excelHtml).toContain('Sistem Kasir (POS) &amp; Manajemen Inventaris Terpadu');
+    expect(excelHtml).toContain('No. Dokumen');
+    expect(excelHtml).toContain('Periode Laporan');
+    expect(excelHtml).toContain('Catatan &amp; Dasar Perhitungan Audit');
+    expect(excelHtml).toContain('Disiapkan / Dicetak Oleh');
+    expect(excelHtml).toContain('TOTAL (1 Hari)');
+    expect(excelHtml).toContain('Rp 104.000');
+
+    const pdfHtml = reportService.buildReportPdfHtml(samplePayload);
+    expect(pdfHtml).toContain('@page');
+    expect(pdfHtml).toContain('A4 portrait');
+    expect(pdfHtml).toContain('Toko Sembako Berkah');
+    expect(pdfHtml).toContain('Laporan Penjualan &amp; Estimasi Laba Harian');
+    expect(pdfHtml).toContain('TOTAL (1 Hari)');
+    expect(pdfHtml).toContain('Budi (Owner)');
+  });
 });

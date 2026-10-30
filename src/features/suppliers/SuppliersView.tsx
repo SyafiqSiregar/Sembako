@@ -87,6 +87,26 @@ export const SuppliersView: React.FC = () => {
     }
   };
 
+  const handleReverseReceipt = async (receiptId: string, receiptNo: string) => {
+    if (!currentUser) return;
+    const reason = prompt(`Masukkan alasan pembatalan / reversal untuk penerimaan #${receiptNo}:`);
+    if (!reason || !reason.trim()) return;
+
+    try {
+      await receiptService.reverseReceipt({
+        receiptId,
+        reversedBy: currentUser.id,
+        reason: reason.trim(),
+      });
+      showNotification('success', `Penerimaan #${receiptNo} berhasil dibatalkan (reversal)`);
+      setSelectedReceiptDetail(null);
+      await loadData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Gagal membatalkan penerimaan barang';
+      showNotification('error', msg);
+    }
+  };
+
   // Filtered lists
   const filteredSuppliers = useMemo(() => {
     let list = suppliers.filter((s) => s.active === 1);
@@ -233,7 +253,7 @@ export const SuppliersView: React.FC = () => {
                 </p>
               </div>
             ) : (
-              <table className="w-full text-left text-xs">
+              <table className="w-full text-left text-xs min-w-[650px]">
                 <thead className="bg-muted/60 border-b border-border text-muted-foreground uppercase tracking-wider font-semibold text-[11px]">
                   <tr>
                     <th className="px-5 py-3.5">Nama Pemasok</th>
@@ -289,7 +309,7 @@ export const SuppliersView: React.FC = () => {
                 </p>
               </div>
             ) : (
-              <table className="w-full text-left text-xs">
+              <table className="w-full text-left text-xs min-w-[650px]">
                 <thead className="bg-muted/60 border-b border-border text-muted-foreground uppercase tracking-wider font-semibold text-[11px]">
                   <tr>
                     <th className="px-5 py-3.5">No. Penerimaan</th>
@@ -314,8 +334,14 @@ export const SuppliersView: React.FC = () => {
                         {formatRupiah(r.total_cost)}
                       </td>
                       <td className="px-4 py-3.5 text-center">
-                        <span className="inline-block px-2.5 py-0.5 rounded-pill text-[10px] font-bold uppercase tracking-wider bg-success text-success-foreground border border-success/30">
-                          Diposting
+                        <span
+                          className={`inline-block px-2.5 py-0.5 rounded-pill text-[10px] font-bold uppercase tracking-wider ${
+                            r.status === 'posted'
+                              ? 'bg-success text-success-foreground border border-success/30'
+                              : 'bg-destructive/15 text-destructive-text border border-destructive/30'
+                          }`}
+                        >
+                          {r.status === 'posted' ? 'Diposting' : 'Dibatalkan'}
                         </span>
                       </td>
                       <td className="px-5 py-3.5 text-right">
@@ -413,8 +439,27 @@ export const SuppliersView: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-4 bg-white border-t border-stone-200 flex justify-end">
+            <div className="p-4 bg-white border-t border-stone-200 flex justify-between items-center">
+              {selectedReceiptDetail.receipt.status === 'posted' ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleReverseReceipt(
+                      selectedReceiptDetail.receipt.id,
+                      selectedReceiptDetail.receipt.receipt_no
+                    )
+                  }
+                  className="py-2 px-3 rounded-xl border border-rose-300 bg-rose-50 hover:bg-rose-100 text-xs font-semibold text-rose-700 transition-colors"
+                >
+                  Batalkan Penerimaan (Reversal)
+                </button>
+              ) : (
+                <span className="text-[11px] text-rose-600 font-semibold italic">
+                  Penerimaan ini telah dibatalkan (Reversal)
+                </span>
+              )}
               <button
+                type="button"
                 onClick={() => setSelectedReceiptDetail(null)}
                 className="py-2 px-4 rounded-xl border border-stone-300 text-xs font-semibold text-stone-600 hover:bg-stone-50"
               >

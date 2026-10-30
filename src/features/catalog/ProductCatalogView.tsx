@@ -19,6 +19,8 @@ import {
   FolderPlus,
   Loader2,
   UploadCloud,
+  RotateCcw,
+  HelpCircle,
 } from 'lucide-react';
 
 export const ProductCatalogView: React.FC = () => {
@@ -26,6 +28,7 @@ export const ProductCatalogView: React.FC = () => {
   const [products, setProducts] = useState<ProductDetail[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [statusTab, setStatusTab] = useState<'active' | 'archived' | 'all'>('active');
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +36,7 @@ export const ProductCatalogView: React.FC = () => {
   // Modals
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
+  const [isDuplicateGuideOpen, setIsDuplicateGuideOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ProductDetail | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
@@ -55,56 +59,7 @@ export const ProductCatalogView: React.FC = () => {
       }
       setCategories(cats);
 
-      let prods = await catalogService.listProducts();
-
-      // Seed initial demo products jika kosong
-      if (prods.length === 0 && cats[0]) {
-        await catalogService.createProduct({
-          name: 'Beras Rojo Lele 5 kg',
-          sku: 'BRS-001',
-          categoryId: cats[0].id,
-          baseUnitKind: 'weight',
-          baseUnitCode: 'g',
-          minStockBase: 5,
-          trackExpiry: true,
-          createdBy: 'system',
-          units: [{ unitCode: 'sak', name: 'Sak 5 kg', conversionFactor: 5000, price: 72000, costX10k: 650000000, isBase: true }],
-          barcodes: [{ barcode: '8991234567890', unitCode: 'sak' }],
-        });
-
-        if (cats[1]) {
-          await catalogService.createProduct({
-            name: 'Minyak Goreng Sovia 2 L',
-            sku: 'MYK-001',
-            categoryId: cats[1].id,
-            baseUnitKind: 'volume',
-            baseUnitCode: 'ml',
-            minStockBase: 10,
-            trackExpiry: true,
-            createdBy: 'system',
-            units: [{ unitCode: 'pch', name: 'Pouch 2 L', conversionFactor: 2000, price: 34000, costX10k: 300000000, isBase: true }],
-            barcodes: [{ barcode: '8992345678901', unitCode: 'pch' }],
-          });
-        }
-
-        if (cats[2]) {
-          await catalogService.createProduct({
-            name: 'Gula Pasir Gulaku 1 kg',
-            sku: 'GLA-001',
-            categoryId: cats[2].id,
-            baseUnitKind: 'weight',
-            baseUnitCode: 'g',
-            minStockBase: 10,
-            trackExpiry: false,
-            createdBy: 'system',
-            units: [{ unitCode: 'bks', name: 'Bungkus 1 kg', conversionFactor: 1000, price: 17500, costX10k: 150000000, isBase: true }],
-            barcodes: [{ barcode: '8993456789012', unitCode: 'bks' }],
-          });
-        }
-
-        prods = await catalogService.listProducts();
-      }
-
+      const prods = await catalogService.listProducts({ activeOnly: false });
       setProducts(prods);
       productSearchIndex.setItems(prods);
     } catch (err: any) {
@@ -122,8 +77,19 @@ export const ProductCatalogView: React.FC = () => {
   const displayedProducts = useMemo(() => {
     let result = products;
 
+    if (statusTab === 'active') {
+      result = result.filter((p) => p.product.active === 1);
+    } else if (statusTab === 'archived') {
+      result = result.filter((p) => p.product.active === 0);
+    }
+
     if (searchQuery.trim()) {
       result = productSearchIndex.search(searchQuery.trim());
+      if (statusTab === 'active') {
+        result = result.filter((p) => p.product.active === 1);
+      } else if (statusTab === 'archived') {
+        result = result.filter((p) => p.product.active === 0);
+      }
     }
 
     if (selectedCategory !== 'all') {
@@ -131,7 +97,7 @@ export const ProductCatalogView: React.FC = () => {
     }
 
     return result;
-  }, [products, searchQuery, selectedCategory]);
+  }, [products, statusTab, searchQuery, selectedCategory]);
 
   const handleEdit = (prod: ProductDetail) => {
     setEditingProduct(prod);
@@ -148,6 +114,22 @@ export const ProductCatalogView: React.FC = () => {
     if (confirm(`Yakin ingin mengarsipkan produk '${name}'? Produk tidak akan muncul di kasir.`)) {
       try {
         await catalogService.archiveProduct(id, currentUser.id);
+        await loadData();
+      } catch (err: any) {
+        alert(err.message);
+      }
+    }
+  };
+
+  const handleReactivate = async (id: string, name: string) => {
+    if (!currentUser) return;
+    if (confirm(`Aktifkan kembali produk '${name}'? Produk akan muncul kembali di kasir.`)) {
+      try {
+        await catalogService.updateProduct({
+          id,
+          active: 1,
+          updatedBy: currentUser.id,
+        });
         await loadData();
       } catch (err: any) {
         alert(err.message);
@@ -178,9 +160,9 @@ export const ProductCatalogView: React.FC = () => {
         {/* Card Header Toolbar */}
         <div className="p-4 border-b border-border flex flex-col gap-3 bg-card">
           {/* Top Row: Search Input + Action Buttons */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
             {/* Search Input */}
-            <div className="relative flex-1 sm:max-w-md">
+            <div className="relative flex-1 min-w-[200px]">
               <Search className="size-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
@@ -192,14 +174,14 @@ export const ProductCatalogView: React.FC = () => {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
               <button
                 type="button"
                 onClick={() => setIsCsvModalOpen(true)}
                 className="h-9 px-3 rounded-pill bg-background border border-input text-xs font-semibold text-foreground hover:bg-muted transition-colors shadow-xs flex items-center gap-1.5"
               >
                 <UploadCloud className="size-3.5 text-muted-foreground" />
-                <span>Impor CSV</span>
+                <span>Impor Excel / CSV</span>
               </button>
 
               <button
@@ -213,6 +195,16 @@ export const ProductCatalogView: React.FC = () => {
 
               <button
                 type="button"
+                onClick={() => setIsDuplicateGuideOpen(true)}
+                className="h-9 px-3 rounded-pill bg-background border border-input text-xs font-semibold text-foreground hover:bg-muted transition-colors shadow-xs flex items-center gap-1.5"
+                title="Panduan menangani barang ganda / salah input"
+              >
+                <HelpCircle className="size-3.5 text-muted-foreground" />
+                <span>Barang Duplikat?</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={handleCreateNew}
                 className="h-9 px-3.5 rounded-pill bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary-hover transition-colors shadow-xs flex items-center gap-1.5"
               >
@@ -222,38 +214,78 @@ export const ProductCatalogView: React.FC = () => {
             </div>
           </div>
 
-          {/* Bottom Row: Category Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pt-1">
-            <button
-              type="button"
-              onClick={() => setSelectedCategory('all')}
-              className={`px-3 py-1 rounded-pill text-xs font-semibold whitespace-nowrap transition-colors ${
-                selectedCategory === 'all'
-                  ? 'bg-primary text-primary-foreground shadow-xs'
-                  : 'bg-muted text-muted-foreground hover:text-foreground hover:bg-accent'
-              }`}
-            >
-              Semua ({products.length})
-            </button>
+          {/* Bottom Row: Status Filter Segment + Category Filter Pills */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-1 border-t border-border/50">
+            {/* Status Segment Control */}
+            <div className="flex items-center p-0.5 bg-muted rounded-pill text-xs shrink-0 self-start">
+              <button
+                type="button"
+                onClick={() => setStatusTab('active')}
+                className={`px-3 py-1 rounded-pill text-[11px] font-semibold transition-colors ${
+                  statusTab === 'active'
+                    ? 'bg-card text-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Aktif ({products.filter((p) => p.product.active === 1).length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusTab('archived')}
+                className={`px-3 py-1 rounded-pill text-[11px] font-semibold transition-colors ${
+                  statusTab === 'archived'
+                    ? 'bg-card text-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Diarsipkan ({products.filter((p) => p.product.active === 0).length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusTab('all')}
+                className={`px-3 py-1 rounded-pill text-[11px] font-semibold transition-colors ${
+                  statusTab === 'all'
+                    ? 'bg-card text-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Semua ({products.length})
+              </button>
+            </div>
 
-            {categories.map((c) => {
-              const count = products.filter((p) => p.product.category_id === c.id).length;
-              const isSelected = selectedCategory === c.id;
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => setSelectedCategory(c.id)}
-                  className={`px-3 py-1 rounded-pill text-xs font-semibold whitespace-nowrap transition-colors ${
-                    isSelected
-                      ? 'bg-primary text-primary-foreground shadow-xs'
-                      : 'bg-muted text-muted-foreground hover:text-foreground hover:bg-accent'
-                  }`}
-                >
-                  {c.name} ({count})
-                </button>
-              );
-            })}
+            {/* Category Filter Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto">
+              <button
+                type="button"
+                onClick={() => setSelectedCategory('all')}
+                className={`px-3 py-1 rounded-pill text-xs font-semibold whitespace-nowrap transition-colors ${
+                  selectedCategory === 'all'
+                    ? 'bg-primary text-primary-foreground shadow-xs'
+                    : 'bg-muted text-muted-foreground hover:text-foreground hover:bg-accent'
+                }`}
+              >
+                Semua Kategori
+              </button>
+
+              {categories.map((c) => {
+                const count = products.filter((p) => p.product.category_id === c.id).length;
+                const isSelected = selectedCategory === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setSelectedCategory(c.id)}
+                    className={`px-3 py-1 rounded-pill text-xs font-semibold whitespace-nowrap transition-colors ${
+                      isSelected
+                        ? 'bg-primary text-primary-foreground shadow-xs'
+                        : 'bg-muted text-muted-foreground hover:text-foreground hover:bg-accent'
+                    }`}
+                  >
+                    {c.name} ({count})
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -289,7 +321,7 @@ export const ProductCatalogView: React.FC = () => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left text-xs min-w-[700px]">
               <thead>
                 <tr className="border-b border-border bg-muted/50 text-muted-foreground font-semibold">
                   <th className="py-3 px-4">Nama Produk & Barcode</th>
@@ -304,7 +336,7 @@ export const ProductCatalogView: React.FC = () => {
               <tbody className="divide-y divide-border">
                 {displayedProducts.map((item) => {
                   const baseUnit = item.units[0];
-                  const barcode = item.barcodes[0]?.barcode;
+                  const secondaryUnits = item.units.slice(1);
                   const isLowStock = item.totalStockBase <= item.product.min_stock_base;
                   const isOutOfStock = item.totalStockBase <= 0;
 
@@ -315,17 +347,25 @@ export const ProductCatalogView: React.FC = () => {
                           <span className="font-bold text-foreground text-sm">
                             {item.product.name}
                           </span>
-                          <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
+                          <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
                             {item.product.sku && (
                               <span className="font-mono bg-muted px-1.5 py-0.2 rounded">
                                 {item.product.sku}
                               </span>
                             )}
-                            {barcode ? (
-                              <span className="flex items-center gap-1 font-mono">
-                                <Barcode className="size-3" />
-                                {barcode}
-                              </span>
+                            {item.barcodes.length > 0 ? (
+                              item.barcodes.map((bc) => {
+                                const matchedUnit = item.units.find((u) => u.id === bc.product_unit_id);
+                                return (
+                                  <span key={bc.id} className="flex items-center gap-1 font-mono bg-muted/80 px-1.5 py-0.5 rounded text-foreground">
+                                    <Barcode className="size-3 text-muted-foreground" />
+                                    {bc.barcode}
+                                    {matchedUnit && item.units.length > 1 && (
+                                      <span className="text-[10px] text-muted-foreground font-sans font-medium">({matchedUnit.name})</span>
+                                    )}
+                                  </span>
+                                );
+                              })
                             ) : (
                               <span className="text-muted-foreground italic">Tanpa barcode</span>
                             )}
@@ -340,16 +380,41 @@ export const ProductCatalogView: React.FC = () => {
                       </td>
 
                       <td className="py-3.5 px-4 text-right font-bold text-foreground tabular-nums text-sm">
-                        {baseUnit ? formatRupiah(baseUnit.price) : 'Rp 0'}
-                        {baseUnit && (
-                          <span className="block text-[10px] font-normal text-muted-foreground">
-                            /{baseUnit.name}
-                          </span>
+                        <div>
+                          {baseUnit ? formatRupiah(baseUnit.price) : 'Rp 0'}
+                          {baseUnit && (
+                            <span className="text-[10px] font-normal text-muted-foreground ml-1">
+                              /{baseUnit.name}
+                            </span>
+                          )}
+                        </div>
+                        {secondaryUnits.length > 0 && (
+                          <div className="flex flex-col items-end gap-1 mt-1">
+                            {secondaryUnits.map((u) => (
+                              <span
+                                key={u.id}
+                                className="inline-flex items-center gap-1 text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-semibold"
+                                title={`1 ${u.name} isi ${u.conversion_factor} ${baseUnit?.name || 'unit'}`}
+                              >
+                                <span>{u.name} (x{u.conversion_factor}):</span>
+                                <span>{formatRupiah(u.price)}</span>
+                              </span>
+                            ))}
+                          </div>
                         )}
                       </td>
 
                       <td className="py-3.5 px-4 text-right text-muted-foreground tabular-nums">
-                        {baseUnit ? formatRupiah(Math.round(baseUnit.cost_x10k / 10000)) : 'Rp 0'}
+                        <div>{baseUnit ? formatRupiah(Math.round(baseUnit.cost_x10k / 10000)) : 'Rp 0'}</div>
+                        {secondaryUnits.length > 0 && (
+                          <div className="text-[10px] text-muted-foreground mt-1">
+                            {secondaryUnits.map((u) => (
+                              <div key={u.id}>
+                                {u.name}: {formatRupiah(Math.round(u.cost_x10k / 10000))}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </td>
 
                       <td className="py-3.5 px-4 text-center font-bold tabular-nums">
@@ -367,7 +432,12 @@ export const ProductCatalogView: React.FC = () => {
                       </td>
 
                       <td className="py-3.5 px-4 text-center">
-                        {isOutOfStock ? (
+                        {item.product.active === 0 ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-pill text-[10px] font-semibold bg-stone-100 text-stone-600 border border-stone-200">
+                            <Archive className="size-3 text-stone-500" />
+                            <span>Diarsipkan</span>
+                          </span>
+                        ) : isOutOfStock ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-pill text-[10px] font-semibold bg-destructive/15 text-destructive-text">
                             <XCircle className="size-3" />
                             <span>Habis</span>
@@ -387,22 +457,36 @@ export const ProductCatalogView: React.FC = () => {
 
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <button
-                            type="button"
-                            onClick={() => handleEdit(item)}
-                            className="size-8 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                            title="Edit Produk"
-                          >
-                            <Edit2 className="size-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleArchive(item.product.id, item.product.name)}
-                            className="size-8 rounded-full flex items-center justify-center text-muted-foreground hover:bg-destructive/15 hover:text-destructive-text transition-colors"
-                            title="Arsipkan Produk"
-                          >
-                            <Archive className="size-3.5" />
-                          </button>
+                          {item.product.active === 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => handleReactivate(item.product.id, item.product.name)}
+                              className="h-7 px-2.5 rounded-pill flex items-center gap-1 text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100 transition-colors shadow-xs"
+                              title="Aktifkan Kembali Produk"
+                            >
+                              <RotateCcw className="size-3 text-emerald-600" />
+                              <span>Aktifkan</span>
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleEdit(item)}
+                                className="size-8 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                                title="Edit Produk"
+                              >
+                                <Edit2 className="size-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleArchive(item.product.id, item.product.name)}
+                                className="size-8 rounded-full flex items-center justify-center text-muted-foreground hover:bg-destructive/15 hover:text-destructive-text transition-colors"
+                                title="Arsipkan Produk"
+                              >
+                                <Archive className="size-3.5" />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -478,6 +562,75 @@ export const ProductCatalogView: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* ======================================================== */}
+      {/* MODAL: Panduan Gabung / Koreksi Produk Duplikat (GAP-07)  */}
+      {/* ======================================================== */}
+      {isDuplicateGuideOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col">
+            <div className="bg-[#14463C] text-white p-5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <HelpCircle className="w-5 h-5 text-emerald-300" />
+                <h3 className="font-serif font-bold text-base">Panduan Barang Duplikat</h3>
+              </div>
+              <button
+                onClick={() => setIsDuplicateGuideOpen(false)}
+                className="text-white/70 hover:text-white p-1 rounded-lg"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-4 text-xs text-stone-700 bg-[#FBF8F3]">
+              <p className="text-stone-600 leading-relaxed">
+                Jika kasir atau staf secara tidak sengaja membuat 2 produk berbeda untuk barang yang sama (misal <em>&ldquo;Indomie Goreng&rdquo;</em> dan <em>&ldquo;Indomie goreng eceran&rdquo;</em>), ikuti 3 langkah aman ini:
+              </p>
+
+              <div className="space-y-3">
+                <div className="p-3 bg-white rounded-xl border border-stone-200">
+                  <div className="font-bold text-stone-900 flex items-center gap-1.5 mb-1">
+                    <span className="size-5 rounded-full bg-[#14463C] text-white flex items-center justify-center text-[10px]">1</span>
+                    Pindahkan Sisa Stok
+                  </div>
+                  <p className="text-stone-600">
+                    Buka menu <strong>Inventaris → Sesuaikan Stok</strong>. Pilih produk yang keliru, kurangi stoknya menjadi 0 dengan alasan <em>&ldquo;Koreksi Produk Duplikat&rdquo;</em>. Kemudian tambahkan stok tersebut ke produk yang benar.
+                  </p>
+                </div>
+
+                <div className="p-3 bg-white rounded-xl border border-stone-200">
+                  <div className="font-bold text-stone-900 flex items-center gap-1.5 mb-1">
+                    <span className="size-5 rounded-full bg-[#14463C] text-white flex items-center justify-center text-[10px]">2</span>
+                    Arsipkan Barang yang Keliru
+                  </div>
+                  <p className="text-stone-600">
+                    Di tabel Katalog Produk ini, cari barang yang keliru lalu klik tombol <strong>Arsipkan</strong>. Barang tidak akan muncul lagi di kasir POS maupun daftar aktif.
+                  </p>
+                </div>
+
+                <div className="p-3 bg-white rounded-xl border border-stone-200">
+                  <div className="font-bold text-emerald-800 flex items-center gap-1.5 mb-1">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    Data Riwayat Struk Tetap 100% Aman
+                  </div>
+                  <p className="text-stone-600">
+                    Struk penjualan lama yang pernah mencatat produk tersebut tidak akan berubah atau rusak, karena sistem menyimpan salinan permanen (snapshot).
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 bg-white border-t border-stone-200 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsDuplicateGuideOpen(false)}
+                className="px-5 py-2.5 bg-[#14463C] text-white rounded-xl text-xs font-bold hover:bg-[#0F352E] transition-colors"
+              >
+                Saya Mengerti
+              </button>
+            </div>
           </div>
         </div>
       )}

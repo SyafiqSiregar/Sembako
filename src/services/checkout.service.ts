@@ -33,6 +33,7 @@ export interface CheckoutParams {
   paymentMethod: 'cash' | 'non_cash_manual';
   amountPaid: number;
   deviceCode?: string;
+  referenceNo?: string;
 }
 
 export interface CheckoutResult {
@@ -161,6 +162,7 @@ export class CheckoutService {
       method: params.paymentMethod,
       amount: amountPaid,
       paid_at: now,
+      reference_no: params.referenceNo?.trim() || undefined,
     };
 
     // 6. Transaksi Atomik: Alokasikan FEFO & Kurangi stok lewat InventoryService & simpan penjualan
@@ -251,13 +253,15 @@ export class CheckoutService {
   }
 
   /**
-   * Melakukan Void Pembatalan Transaksi Kasir (BR-14, BR-15, AC-07).
+   * Melakukan Void Pembatalan Transaksi Kasir (BR-14, BR-15, BR-17, AC-07).
    * Mengembalikan stok lewat reversal movement dan menandai status voided.
+   * Hanya diizinkan pada sesi kasir yang sama dan masih aktif (BR-17).
    */
   async voidSale(params: {
     saleId: string;
     voidedBy: string;
     voidReason: string;
+    currentSessionId?: string;
   }): Promise<Sale> {
     const reason = params.voidReason?.trim();
     if (!reason) {
@@ -271,6 +275,16 @@ export class CheckoutService {
 
     if (sale.status !== 'completed') {
       throw new Error(`Transaksi tidak dapat di-void karena berstatus '${sale.status}'`);
+    }
+
+    // Validasi pembatalan hanya pada sesi kasir yang sama dan masih aktif (BR-17)
+    const session = await this.db.cashier_sessions.get(sale.session_id);
+    if (!session || session.status !== 'open') {
+      throw new Error('Transaksi dari sesi kas yang sudah ditutup tidak dapat di-void. Gunakan fitur Retur Barang.');
+    }
+
+    if (params.currentSessionId && sale.session_id !== params.currentSessionId) {
+      throw new Error('Void hanya dapat dilakukan pada sesi kasir yang sedang aktif.');
     }
 
     const items = await this.db.sale_items.where('sale_id').equals(params.saleId).toArray();
@@ -329,14 +343,39 @@ export class CheckoutService {
   }
 
   /**
-   * Memproses Retur Barang Pelanggan (FR-POS-12, BR-16, AC-08).
-   * Menambah kembali stok layak jual ke gudang/toko dan mencatat pengembalian dana kas.
+   * Mengambil batas hari retur dari pengaturan toko (BR-18, FR-SET-03).
+   */
+  private async getReturnDaysLimit(): Promise<number> {
+    const settingRec = await this.db.app_settings.get('store_settings');
+    if (settingRec) {
+      try {
+        const parsed = JSON.parse(settingRec.value_json);
+        if (typeof parsed.returnDaysLimit === 'number') {
+          return parsed.returnDaysLimit;
+        }
+      } catch {
+        // Fallback default
+      }
+    }
+    return 7;
+  }
+
+  /**
+   * Memproses Retur Barang Pelanggan (FR-POS-12, BR-16, BR-18, BR-19, AC-08, AC-28).
+   * - Menambah kembali stok layak jual ke gudang/toko
+   * - Barang rusak/kedaluwarsa dicatat movement tersendiri dan tidak menambah stok jual (BR-19, AC-28)
+   * - Menolak retur jika melebihi batas waktu returnDaysLimit (BR-18)
    */
   async processReturn(params: {
     saleId: string;
     returnedBy: string;
     reason: string;
-    items: { saleItemId: string; qtyBase: number; refundAmount: number }[];
+    items: {
+      saleItemId: string;
+      qtyBase: number;
+      refundAmount: number;
+      condition?: 'sellable' | 'damaged' | 'expired';
+    }[];
   }) {
     const reason = params.reason?.trim();
     if (!reason) {
@@ -355,6 +394,20 @@ export class CheckoutService {
       throw new Error('Transaksi yang telah di-void tidak dapat diretur');
     }
 
+    const now = this.clock.now();
+
+    // Validasi batas waktu retur (BR-18)
+    const returnDaysLimit = await this.getReturnDaysLimit();
+    if (returnDaysLimit > 0) {
+      const elapsedMs = now - sale.completed_at;
+      const elapsedDays = Math.floor(elapsedMs / (24 * 60 * 60 * 1000));
+      if (elapsedDays > returnDaysLimit) {
+        throw new Error(
+          `Retur telah melebihi batas waktu ${returnDaysLimit} hari sejak pembelian (${elapsedDays} hari yang lalu)`
+        );
+      }
+    }
+
     const saleItems = await this.db.sale_items.where('sale_id').equals(params.saleId).toArray();
     const existingReturns = await this.db.returns.where('original_sale_id').equals(params.saleId).toArray();
     const existingReturnIds = existingReturns.map((r) => r.id);
@@ -362,21 +415,22 @@ export class CheckoutService {
       ? await this.db.return_items.where('return_id').anyOf(existingReturnIds).toArray()
       : [];
 
-    const now = this.clock.now();
     const returnId = this.idGen.generateId();
     const returnNo = `RET-${this.clock.todayDateString().replace(/-/g, '')}-${returnId.slice(0, 4).toUpperCase()}`;
 
     let totalRefund = 0;
     const movementItemsToRestock: { productId: string; qtyDeltaBase: number; unitCostX10k: number }[] = [];
+    const movementItemsWriteOff: { productId: string; qtyDeltaBase: number; unitCostX10k: number }[] = [];
     const returnItemRecords: {
       id: string;
       return_id: string;
       sale_item_id: string;
       qty_base: number;
       refund_amount: number;
+      condition?: 'sellable' | 'damaged' | 'expired';
     }[] = [];
 
-    // Validasi kuantitas retur tidak melebihi sisa pembelian (AC-08)
+    // Validasi kuantitas retur tidak melebihi sisa pembelian (AC-08, BR-18)
     for (const retItem of params.items) {
       const originalItem = saleItems.find((it) => it.id === retItem.saleItemId);
       if (!originalItem) {
@@ -394,6 +448,7 @@ export class CheckoutService {
         );
       }
 
+      const condition = retItem.condition || 'sellable';
       totalRefund += retItem.refundAmount;
 
       returnItemRecords.push({
@@ -402,13 +457,22 @@ export class CheckoutService {
         sale_item_id: retItem.saleItemId,
         qty_base: retItem.qtyBase,
         refund_amount: retItem.refundAmount,
+        condition,
       });
 
-      movementItemsToRestock.push({
-        productId: originalItem.product_id,
-        qtyDeltaBase: retItem.qtyBase, // Balik ke stok = positif
-        unitCostX10k: originalItem.unit_cost_x10k_snapshot,
-      });
+      if (condition === 'sellable') {
+        movementItemsToRestock.push({
+          productId: originalItem.product_id,
+          qtyDeltaBase: retItem.qtyBase, // Balik ke stok = positif
+          unitCostX10k: originalItem.unit_cost_x10k_snapshot,
+        });
+      } else {
+        movementItemsWriteOff.push({
+          productId: originalItem.product_id,
+          qtyDeltaBase: retItem.qtyBase,
+          unitCostX10k: originalItem.unit_cost_x10k_snapshot,
+        });
+      }
     }
 
     // Transaksi Atomik Retur
@@ -425,17 +489,50 @@ export class CheckoutService {
         this.db.audit_logs,
       ],
       async () => {
-        // 1. Tambah kembali stok layak jual
-        await this.inventoryService.recordMovement({
-          type: 'CUSTOMER_RETURN',
-          refType: 'return',
-          refId: returnId,
-          userId: params.returnedBy,
-          reason: `Retur barang #${returnNo} (Faktur #${sale.receipt_no}): ${reason}`,
-          items: movementItemsToRestock,
-        });
+        // 1. Tambah kembali stok layak jual ke inventaris (BR-16)
+        if (movementItemsToRestock.length > 0) {
+          await this.inventoryService.recordMovement({
+            type: 'CUSTOMER_RETURN',
+            refType: 'return',
+            refId: returnId,
+            userId: params.returnedBy,
+            reason: `Retur barang layak jual #${returnNo} (Faktur #${sale.receipt_no}): ${reason}`,
+            items: movementItemsToRestock,
+          });
+        }
 
-        // 2. Simpan header & item retur
+        // 2. Untuk barang rusak / kedaluwarsa, dicatat movement tersendiri tanpa menambah stok jual (BR-19, AC-28)
+        if (movementItemsWriteOff.length > 0) {
+          // Mutasi A: Barang masuk dari pelanggan
+          await this.inventoryService.recordMovement({
+            type: 'CUSTOMER_RETURN',
+            refType: 'return',
+            refId: returnId,
+            userId: params.returnedBy,
+            reason: `Retur barang rusak/kedaluwarsa #${returnNo} (Faktur #${sale.receipt_no}): ${reason}`,
+            items: movementItemsWriteOff.map((it) => ({
+              productId: it.productId,
+              qtyDeltaBase: it.qtyDeltaBase,
+              unitCostX10k: it.unitCostX10k,
+            })),
+          });
+
+          // Mutasi B: Langsung dihapusbukukan (write-off) sehingga stok jual tidak bertambah
+          await this.inventoryService.recordMovement({
+            type: 'RETURN_WRITE_OFF',
+            refType: 'return',
+            refId: returnId,
+            userId: params.returnedBy,
+            reason: `Penghapusan retur barang rusak/kedaluwarsa #${returnNo}: ${reason}`,
+            items: movementItemsWriteOff.map((it) => ({
+              productId: it.productId,
+              qtyDeltaBase: -it.qtyDeltaBase,
+              unitCostX10k: it.unitCostX10k,
+            })),
+          });
+        }
+
+        // 3. Simpan header & item retur
         await this.db.returns.add({
           id: returnId,
           return_no: returnNo,
@@ -448,7 +545,7 @@ export class CheckoutService {
 
         await this.db.return_items.bulkAdd(returnItemRecords);
 
-        // 3. Update status penjualan asal
+        // 4. Update status penjualan asal
         const allItemsReturned = saleItems.every((si) => {
           const retThis = params.items.find((it) => it.saleItemId === si.id)?.qtyBase || 0;
           const prevRet = existingReturnItems
@@ -464,7 +561,7 @@ export class CheckoutService {
           updated_by: params.returnedBy,
         });
 
-        // 4. Audit log
+        // 5. Audit log
         await this.db.audit_logs.add({
           id: this.idGen.generateId(),
           occurred_at: now,

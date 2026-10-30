@@ -12,7 +12,7 @@ import {
 import { db } from '@/data/db';
 import { InventoryService } from '@/services/inventory.service';
 import { BatchService, type ExpiringBatchItem } from '@/services/batch.service';
-import { formatRupiah } from '@/domain/money';
+import { formatRupiah, formatRupiahCompact } from '@/domain/money';
 import { WriteOffModal } from './WriteOffModal';
 
 export const ExpiryView: React.FC = () => {
@@ -152,18 +152,27 @@ export const ExpiryView: React.FC = () => {
         </div>
 
         {/* Nilai Risiko */}
-        <div className="p-4 bg-stone-50 border border-stone-200 rounded-2xl shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-stone-700">
+        <div
+          className="p-3.5 sm:p-4 bg-card border border-border rounded-card shadow-sm min-w-0 overflow-hidden flex flex-col justify-between"
+          title={formatRupiah(totalRiskValuation)}
+        >
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground leading-snug">
               Total Nilai Berisiko
             </span>
-            <AlertTriangle className="w-4 h-4 text-stone-500" />
+            <AlertTriangle className="w-4 h-4 text-muted-foreground shrink-0" />
           </div>
-          <div className="text-xl font-bold font-serif text-stone-900">
-            {formatRupiah(totalRiskValuation)}
-          </div>
-          <div className="text-[11px] text-stone-500 mt-1 font-medium">
-            HPP stok batch berisiko
+          <div className="min-w-0">
+            <div className="text-xl sm:text-2xl font-extrabold text-foreground tabular-nums tracking-tight truncate">
+              {totalRiskValuation >= 1_000_000
+                ? formatRupiahCompact(totalRiskValuation)
+                : formatRupiah(totalRiskValuation)}
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-1 font-medium tabular-nums truncate">
+              {totalRiskValuation >= 1_000_000
+                ? formatRupiah(totalRiskValuation)
+                : 'HPP stok batch berisiko'}
+            </div>
           </div>
         </div>
       </div>
@@ -238,7 +247,7 @@ export const ExpiryView: React.FC = () => {
 
         {/* Table Area */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-left text-xs min-w-[700px]">
             <thead className="bg-muted/60 border-b border-border text-muted-foreground uppercase tracking-wider font-semibold text-[11px]">
               <tr>
                 <th className="px-5 py-3.5">Produk & Kategori</th>

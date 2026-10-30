@@ -14,7 +14,7 @@ import {
 import { db, type Category } from '@/data/db';
 import { InventoryService, type ProductStockSummary } from '@/services/inventory.service';
 import { CatalogService, type ProductDetail } from '@/services/catalog.service';
-import { formatRupiah } from '@/domain/money';
+import { formatRupiah, formatRupiahCompact } from '@/domain/money';
 import { StockCardModal } from './StockCardModal';
 import { StockAdjustmentModal } from './StockAdjustmentModal';
 import { StocktakeModal } from './StocktakeModal';
@@ -135,39 +135,70 @@ export const InventoryView: React.FC = () => {
       )}
 
       {/* Metrics Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-card p-4 rounded-card border border-border shadow-sm">
-          <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold">
-            <span>Total Produk</span>
-            <Package className="size-4 text-muted-foreground" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-card p-3.5 sm:p-4 rounded-card border border-border shadow-sm min-w-0 overflow-hidden flex flex-col justify-between">
+          <div className="flex items-start justify-between gap-2 text-muted-foreground text-xs font-semibold">
+            <span className="leading-snug">Total Produk</span>
+            <Package className="size-4 text-muted-foreground shrink-0" />
           </div>
-          <div className="text-2xl font-bold text-foreground mt-1 font-mono">{totalItems} SKU</div>
-        </div>
-
-        <div className="bg-card p-4 rounded-card border border-border shadow-sm">
-          <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold">
-            <span>Estimasi Nilai Persediaan</span>
-            <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground">HPP</span>
-          </div>
-          <div className="text-2xl font-bold text-primary mt-1 font-mono tracking-tight">
-            {formatRupiah(totalValue)}
+          <div className="mt-2">
+            <div className="text-xl sm:text-2xl font-extrabold text-foreground tabular-nums tracking-tight truncate">
+              {totalItems} SKU
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-0.5 truncate">
+              Barang aktif di katalog
+            </div>
           </div>
         </div>
 
-        <div className="bg-card p-4 rounded-card border border-border shadow-sm">
-          <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold">
-            <span>Stok Menipis</span>
-            <AlertTriangle className="size-4 text-warning-text" />
+        <div
+          className="bg-card p-3.5 sm:p-4 rounded-card border border-border shadow-sm min-w-0 overflow-hidden flex flex-col justify-between"
+          title={formatRupiah(totalValue)}
+        >
+          <div className="flex items-start justify-between gap-2 text-muted-foreground text-xs font-semibold">
+            <span className="leading-snug">Estimasi Nilai Persediaan</span>
+            <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded font-bold text-muted-foreground shrink-0">
+              HPP
+            </span>
           </div>
-          <div className="text-2xl font-bold text-warning-text mt-1 font-mono">{lowStockCount} Produk</div>
+          <div className="mt-2 min-w-0">
+            <div className="text-xl sm:text-2xl font-extrabold text-primary tabular-nums tracking-tight truncate">
+              {totalValue >= 1_000_000 ? formatRupiahCompact(totalValue) : formatRupiah(totalValue)}
+            </div>
+            <div className="text-[11px] text-muted-foreground font-medium tabular-nums mt-0.5 truncate">
+              {totalValue >= 1_000_000 ? formatRupiah(totalValue) : 'Nilai modal stok aktif'}
+            </div>
+          </div>
         </div>
 
-        <div className="bg-card p-4 rounded-card border border-border shadow-sm">
-          <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold">
-            <span>Stok Habis (Kosong)</span>
-            <AlertTriangle className="size-4 text-destructive-text" />
+        <div className="bg-card p-3.5 sm:p-4 rounded-card border border-border shadow-sm min-w-0 overflow-hidden flex flex-col justify-between">
+          <div className="flex items-start justify-between gap-2 text-muted-foreground text-xs font-semibold">
+            <span className="leading-snug">Stok Menipis</span>
+            <AlertTriangle className="size-4 text-warning-foreground shrink-0" />
           </div>
-          <div className="text-2xl font-bold text-destructive-text mt-1 font-mono">{outOfStockCount} Produk</div>
+          <div className="mt-2">
+            <div className="text-xl sm:text-2xl font-extrabold text-warning-foreground tabular-nums tracking-tight truncate">
+              {lowStockCount} Produk
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-0.5 truncate">
+              Perlu segera kulakan
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-card p-3.5 sm:p-4 rounded-card border border-border shadow-sm min-w-0 overflow-hidden flex flex-col justify-between">
+          <div className="flex items-start justify-between gap-2 text-muted-foreground text-xs font-semibold">
+            <span className="leading-snug">Stok Habis</span>
+            <AlertTriangle className="size-4 text-destructive-foreground shrink-0" />
+          </div>
+          <div className="mt-2">
+            <div className="text-xl sm:text-2xl font-extrabold text-destructive-foreground tabular-nums tracking-tight truncate">
+              {outOfStockCount} Produk
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-0.5 truncate">
+              Saldo fisik kosong (0)
+            </div>
+          </div>
         </div>
       </div>
 
@@ -290,7 +321,7 @@ export const InventoryView: React.FC = () => {
               <p className="text-xs text-muted-foreground mt-0.5">Ubah kata kunci pencarian atau filter status</p>
             </div>
           ) : (
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left text-xs min-w-[700px]">
               <thead className="bg-muted/60 border-b border-border text-muted-foreground uppercase tracking-wider font-semibold text-[11px]">
                 <tr>
                   <th className="px-5 py-3.5">Produk & SKU</th>
