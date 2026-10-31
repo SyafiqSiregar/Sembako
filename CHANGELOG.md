@@ -4,6 +4,53 @@ Catatan seluruh perubahan, implementasi fitur, pembaruan skema, dan keputusan ar
 
 Format mengacu pada [Keep a Changelog](https://keepachangelog.com/id/1.0.0/).
 
+## [Bugfix Valuasi Persediaan & Konversi Satuan Dasar] - 2026-10-31
+
+**Perbaikan Bug Unit Conversion Mismatch (AGENTS.md §4.1, PRD FR-RPT-05, AC-30):**
+- **Penyebab masalah nilai stok Rp 40 Miliar:**
+  Sistem menyimpan kuantitas stok produk berat dan volume dalam satuan dasar terkecil (`g` dan `ml`), misalnya Beras 100 karung = `500.000 g`, Minyak 100 pouch = `200.000 ml`, Gula 100 bungkus = `100.000 g`. Namun pada `report.service.ts`, `inventory.service.ts`, `batch.service.ts`, dan `stocktake.service.ts`, nilai valuasi persediaan dihitung dengan mengalikan kuantitas stok dasar langsung dengan harga modal kemasan (`currentStock * costPerUnit`), tanpa dibagi dengan faktor konversi satuan (`conversion_factor`). Akibatnya `500.000 g x Rp 65.000 = Rp 32.500.000.000` (dihitung Rp 65.000 per gram!), menghasilkan total fiktif Rp 40.000.000.000.
+- **Perbaikan formula:**
+  Valuasi persediaan kini dibagi dengan `conversion_factor`: `Math.round((currentStock * costPerUnit) / factor)`.
+  Hasil valuasi sebenarnya adalah:
+  - Beras Rojo Lele 5 kg: 100 sak @ Rp 65.000 = **Rp 6.500.000** (bukan Rp 32,5 Miliar)
+  - Minyak Goreng Sovia 2 L: 100 pouch @ Rp 30.000 = **Rp 3.000.000** (bukan Rp 6 Miliar)
+  - Gula Pasir Gulaku 1 kg: 100 bungkus @ Rp 15.000 = **Rp 1.500.000** (bukan Rp 1,5 Miliar)
+  - Indomie Goreng: 0 pcs = **Rp 0**
+  - **TOTAL NILAI PERSEDIAAN:** **Rp 11.000.000**
+- **Penyempurnaan tampilan:**
+  - `ReportsView.tsx` (Tab Status & Nilai Stok) dan dokumen ekspor Excel/PDF kini menampilkan kuantitas kemasan dengan rincian satuan dasar, contoh: `100 Sak (500.000 g)`.
+  - Kolom Biaya Satuan kini mencantumkan satuan kemasan secara transparan: `Rp 65.000 / Sak 5 kg`.
+  - Kolom Batas Minimum tidak lagi menampilkan `5 g` (setengah sendok teh), melainkan `5 Sak`.
+  - Baris total bawah tidak lagi menjumlahkan gram + ml + pcs menjadi `800000 unit`, melainkan menampilkan total kemasan dan total valuasi Rp 11.000.000.
+  - `InventoryView.tsx` menyelaraskan tampilan kuantitas dan estimasi nilai persediaan.
+
+**Verifikasi:** `pnpm typecheck` lulus; `pnpm test` 113 lulus (+1 tes baru verifikasi konversi satuan AC-30); `pnpm build` lulus.
+
+---
+
+## [Struk Thermal Terisolasi 58/80 mm & Pengaturan Struk (Fase 6, Opsi 3)] - 2026-10-31
+
+**Perubahan perilaku (dilindungi tes regresi):**
+- **Struk kini memakai identitas toko dari Pengaturan.** Sebelumnya `PosView` tidak meneruskan nama/alamat/telepon sehingga struk selalu mencetak nilai bawaan komponen (`Jl. Pasar Tradisional No. 12`). `receiptFooter` yang selama ini tersimpan tetapi tidak dipakai kini dicetak.
+- **Footer larangan retur dihapus.** Teks tetap *"Barang yang dibeli tidak dapat ditukar/dikembalikan"* bertentangan dengan kebijakan retur toko (`returnDaysLimit`). Diganti baris kebijakan dinamis *"Retur maks. N hari sejak tanggal beli, bawa struk ini."* (dapat dimatikan; tidak dicetak bila batas 0 hari karena PRD belum mendefinisikan artinya).
+- **Cetak tidak lagi mencetak seluruh halaman aplikasi.** `window.print()` diganti `printHtmlDocument` (iframe tersembunyi) dengan `@page` sesuai lebar kertas.
+- **Cetak ulang dari riwayat** memakai generator yang sama, ditandai `*** SALINAN STRUK *** (CETAK ULANG)` + waktu cetak ulang, dan memeriksa izin `sale.reprint`.
+
+**Tambahan:**
+- `src/lib/print.ts`, `src/lib/html.ts` (`escapeHtml` dipindah dari `report.service.ts`, perilaku sama).
+- `src/services/receipt.service.ts`: struk monospace 32 kolom (58 mm) / 48 kolom (80 mm); pratinjau layar dan dokumen cetak memakai baris yang sama.
+- `StoreSettings.defaultPaperWidth` (bawaan `58mm`) dan `showReturnPolicyOnReceipt` (bawaan aktif). Data pengaturan lama tanpa field ini tetap terbaca (digabung dengan bawaan; tanpa migrasi skema).
+- Pengaturan → bagian **Struk & Printer**: kertas bawaan, sakelar batas retur, **Cetak Struk Uji** (identitas toko + penggaris kolom, tanpa barang/nominal rekaan, tidak disimpan).
+- `ReceiptModal` ditulis ulang dengan token desain (sebelumnya heksadesimal/`stone-*`/`emerald-*`).
+
+**Keputusan teknis / penyimpangan dari `rencana_lanjutan.md`:**
+- Pilihan kertas di modal struk bersifat **per-cetak**; bawaan toko diubah di Pengaturan (menyimpan tiap klik akan menulis audit log berulang).
+- Bagian "Struk & Printer" berada di tab Identitas Toko yang ada, bukan tab baru; pratinjau langsung di Pengaturan ditunda (pratinjau ada di modal struk dan lewat Struk Uji).
+
+**Verifikasi:** `pnpm typecheck` lulus; `pnpm test` 112 lulus (+16 baru); `pnpm build` lulus. **Belum teruji di perangkat:** printer thermal 58/80 mm. **Tidak dapat dijalankan:** `pnpm lint` (ESLint tidak terpasang; OQ-L07).
+
+---
+
 ## [Pusat Peringatan Operasional Toko, Kop Surat Excel Resmi, & Responsivitas Mobile] - 2026-10-30
 
 - **Pusat Peringatan Operasional Toko (`src/components/layout/NotificationCenterPopover.tsx` & `AppLayout.tsx`)**:

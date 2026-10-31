@@ -226,10 +226,14 @@ export const ReportsView: React.FC = () => {
 
   const inventoryTotals = useMemo(() => {
     return filteredInventory.reduce(
-      (acc, i) => ({
-        stock: acc.stock + i.currentStock,
-        valuation: acc.valuation + i.valuationRupiah,
-      }),
+      (acc, i) => {
+        const factor = i.conversionFactor || 1;
+        const packQty = i.packagingStock ?? (factor > 1 ? Math.floor(i.currentStock / factor) : i.currentStock);
+        return {
+          stock: acc.stock + packQty,
+          valuation: acc.valuation + i.valuationRupiah,
+        };
+      },
       { stock: 0, valuation: 0 }
     );
   }, [filteredInventory]);
@@ -387,27 +391,36 @@ export const ReportsView: React.FC = () => {
           { label: 'No.', widthPx: 55, align: 'center', isTextFormat: true },
           { label: 'Nama Produk', widthPx: 230, align: 'left' },
           { label: 'Kategori Barang', widthPx: 160, align: 'left' },
-          { label: 'Stok Fisik', widthPx: 135, align: 'right' },
+          { label: 'Stok Fisik', widthPx: 160, align: 'right' },
           { label: 'Stok Minimum', widthPx: 135, align: 'right' },
           { label: 'Biaya Modal / Unit', widthPx: 175, align: 'right' },
           { label: 'Nilai Persediaan (Rp)', widthPx: 190, align: 'right' },
           { label: 'Status Stok', widthPx: 130, align: 'center' },
         ],
-        rows: filteredInventory.map((i, idx) => [
-          String(idx + 1),
-          i.productName,
-          i.categoryName,
-          `${i.currentStock} ${i.unitCode}`,
-          `${i.minStock} ${i.unitCode}`,
-          formatRupiah(i.costPerUnit),
-          formatRupiah(i.valuationRupiah),
-          i.status,
-        ]),
+        rows: filteredInventory.map((i, idx) => {
+          const factor = i.conversionFactor || 1;
+          const packQty = i.packagingStock ?? Math.floor(i.currentStock / factor);
+          const stockLabel = factor > 1
+            ? `${packQty} ${i.unitName || i.unitCode} (${i.currentStock.toLocaleString('id-ID')} ${i.unitCode})`
+            : `${i.currentStock} ${i.unitCode}`;
+          const minStockLabel = `${i.minStock} ${i.unitName || i.unitCode}`;
+          const costLabel = `${formatRupiah(i.costPerUnit)} / ${i.unitName || i.unitCode}`;
+          return [
+            String(idx + 1),
+            i.productName,
+            i.categoryName,
+            stockLabel,
+            minStockLabel,
+            costLabel,
+            formatRupiah(i.valuationRupiah),
+            i.status,
+          ];
+        }),
         footerRow: [
           '',
           `TOTAL (${filteredInventory.length} Produk)`,
           '-',
-          `${inventoryTotals.stock} unit`,
+          `${inventoryTotals.stock} kemasan`,
           '-',
           '-',
           formatRupiah(inventoryTotals.valuation),
@@ -1073,46 +1086,68 @@ export const ReportsView: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  filteredInventory.map((i) => (
-                    <tr key={i.productId} className="hover:bg-muted/40 transition-colors">
-                      <td className="px-4 py-3">
-                        <div className="font-bold text-foreground">{i.productName}</div>
-                        <div className="text-[11px] text-muted-foreground">{i.categoryName}</div>
-                      </td>
-                      <td className="px-3 py-3 text-right font-bold text-foreground tabular-nums">
-                        {i.currentStock} {i.unitCode}
-                      </td>
-                      <td className="px-3 py-3 text-right text-muted-foreground tabular-nums">
-                        {i.minStock} {i.unitCode}
-                      </td>
-                      <td className="px-3 py-3 text-right text-muted-foreground tabular-nums">
-                        {formatRupiah(i.costPerUnit)}
-                      </td>
-                      <td className="px-3 py-3 text-right font-bold text-foreground tabular-nums">
-                        {formatRupiah(i.valuationRupiah)}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        {i.status === 'Aman' && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-pill text-[11px] font-bold bg-success text-success-foreground">
-                            <CheckCircle2 className="w-3 h-3" />
-                            <span>Aman</span>
-                          </span>
-                        )}
-                        {i.status === 'Menipis' && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-pill text-[11px] font-bold bg-warning text-warning-foreground">
-                            <AlertTriangle className="w-3 h-3" />
-                            <span>Menipis</span>
-                          </span>
-                        )}
-                        {i.status === 'Habis' && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-pill text-[11px] font-bold bg-destructive text-destructive-foreground">
-                            <XCircle className="w-3 h-3" />
-                            <span>Habis</span>
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))
+                  filteredInventory.map((i) => {
+                    const factor = i.conversionFactor || 1;
+                    const packQty = i.packagingStock ?? Math.floor(i.currentStock / factor);
+                    return (
+                      <tr key={i.productId} className="hover:bg-muted/40 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="font-bold text-foreground">{i.productName}</div>
+                          <div className="text-[11px] text-muted-foreground">{i.categoryName}</div>
+                        </td>
+                        <td className="px-3 py-3 text-right font-bold text-foreground tabular-nums">
+                          {factor > 1 ? (
+                            <div>
+                              <span>{packQty} {i.unitName || i.unitCode}</span>
+                              <div className="text-[10px] text-muted-foreground font-normal">
+                                ({i.currentStock.toLocaleString('id-ID')} {i.unitCode})
+                              </div>
+                            </div>
+                          ) : (
+                            <span>{i.currentStock} {i.unitCode}</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-3 text-right text-muted-foreground tabular-nums">
+                          {factor > 1 ? (
+                            <span>{i.minStock} {i.unitName || i.unitCode}</span>
+                          ) : (
+                            <span>{i.minStock} {i.unitCode}</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-3 text-right text-muted-foreground tabular-nums">
+                          <div>{formatRupiah(i.costPerUnit)}</div>
+                          {factor > 1 && (
+                            <div className="text-[10px] text-muted-foreground font-normal">
+                              per {i.unitName || i.unitCode}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-3 py-3 text-right font-bold text-foreground tabular-nums">
+                          {formatRupiah(i.valuationRupiah)}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {i.status === 'Aman' && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-pill text-[11px] font-bold bg-success text-success-foreground">
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>Aman</span>
+                            </span>
+                          )}
+                          {i.status === 'Menipis' && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-pill text-[11px] font-bold bg-warning text-warning-foreground">
+                              <AlertTriangle className="w-3 h-3" />
+                              <span>Menipis</span>
+                            </span>
+                          )}
+                          {i.status === 'Habis' && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-pill text-[11px] font-bold bg-destructive text-destructive-foreground">
+                              <XCircle className="w-3 h-3" />
+                              <span>Habis</span>
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
               {!loading && filteredInventory.length > 0 && (
@@ -1122,7 +1157,7 @@ export const ReportsView: React.FC = () => {
                       TOTAL ({filteredInventory.length} Produk)
                     </td>
                     <td className="px-3 py-3 text-right tabular-nums">
-                      {inventoryTotals.stock} unit
+                      {inventoryTotals.stock} kemasan
                     </td>
                     <td className="px-3 py-3 text-right">-</td>
                     <td className="px-3 py-3 text-right">-</td>

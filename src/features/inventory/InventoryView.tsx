@@ -342,10 +342,21 @@ export const InventoryView: React.FC = () => {
                     </td>
                     <td className="px-4 py-3.5 text-muted-foreground">{item.categoryName}</td>
                     <td className="px-4 py-3.5 text-right font-bold text-foreground font-mono text-sm">
-                      {item.currentStock} <span className="text-xs font-normal text-muted-foreground">{item.baseUnitCode}</span>
+                      {item.conversionFactor && item.conversionFactor > 1 ? (
+                        <div>
+                          <span>{item.packagingStock} {item.unitName || item.baseUnitCode}</span>
+                          <div className="text-[10px] text-muted-foreground font-normal font-sans">
+                            ({item.currentStock.toLocaleString('id-ID')} {item.baseUnitCode})
+                          </div>
+                        </div>
+                      ) : (
+                        <span>
+                          {item.currentStock} <span className="text-xs font-normal text-muted-foreground">{item.baseUnitCode}</span>
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3.5 text-right text-muted-foreground font-mono">
-                      {item.minStock} {item.baseUnitCode}
+                      {item.minStock} {item.unitName || item.baseUnitCode}
                     </td>
                     <td className="px-4 py-3.5 text-right font-semibold text-foreground font-mono">
                       {formatRupiah(item.estimatedValue)}

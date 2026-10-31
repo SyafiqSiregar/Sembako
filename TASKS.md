@@ -174,10 +174,30 @@ Daftar tugas implementasi bertahap untuk SembakoOS. Mengikuti `AGENTS.md`, `PRD.
 
 ---
 
+## Fase 6: Penyempurnaan Pasca-MVP (rincian: `rencana_lanjutan.md`)
+
+Urutan: Opsi 3 (struk) → Opsi 2 (auto-lock) → Opsi 1 (barcode & label) → Opsi 4 (UAT).
+
+### Opsi 3 — Struk & Printer Thermal (kode & tes selesai; menunggu uji perangkat)
+
+- [~] **T6.01 Utilitas cetak terisolasi** — `src/lib/print.ts` (iframe tersembunyi), `src/lib/html.ts` (`escapeHtml` bersama).
+- [~] **T6.02 Pengaturan struk** — `StoreSettings.defaultPaperWidth` (`58mm`/`80mm`, bawaan 58mm) dan `showReturnPolicyOnReceipt` (bawaan aktif); validasi lebar kertas di `SettingsService`.
+- [~] **T6.03 Generator struk monospace** — `src/services/receipt.service.ts` (32 kolom/58mm, 48 kolom/80mm, penanda SALINAN saat cetak ulang, struk uji tanpa data rekaan). Tes: `tests/unit/services/receipt.test.ts` (11), `tests/integration/services/receipt-print.test.ts` (5).
+- [~] **T6.04 Redesain `ReceiptModal` + sambungan Pengaturan + cetak ulang riwayat** — identitas & footer struk kini dari Pengaturan; token desain; cetak ulang lewat `sale.reprint`.
+- [~] **T6.05 Bagian "Struk & Printer" di Pengaturan** — pilihan kertas bawaan, sakelar batas retur, tombol Cetak Struk Uji.
+- Belum teruji di perangkat: RC-M01–M04 (printer thermal 58/80 mm, Bluetooth/USB, tablet Android).
+- Belum bisa dijalankan: `pnpm lint` (ESLint tidak terpasang & tanpa konfigurasi di repo; lihat Pertanyaan Terbuka OQ-L07).
+
+---
+
 ## Pertanyaan Terbuka & Catatan Produk
 - [OQ-01]: Font editorial menggunakan bundle font lokal `Fraunces` / `Newsreader` dengan fallback serif.
 - [OQ-02]: Default format mata uang Rupiah integer tanpa sen.
 - [OQ-03]: Batas diskon kasir default 5% (di atas itu butuh approval Supervisor/Owner).
+- [OQ-L01..L06]: Lihat `rencana_lanjutan.md` §6 (durasi auto-lock, nonaktifkan kunci, harga di label, kertas stiker, PIN saat buka aplikasi, definisi retur di laporan). Belum dijawab pemilik.
+- [OQ-L07]: `pnpm lint` gagal — paket `eslint` tidak ada di `package.json` dan tidak ada berkas konfigurasi. Menambah ESLint = dependensi baru (butuh persetujuan, AGENTS.md §7). Rekomendasi: pasang ESLint flat config + `typescript-eslint` + aturan `no-explicit-any`; ada beberapa `any` di `authStore.ts`/`TransactionHistoryView.tsx` yang akan terdeteksi.
+- [OQ-L08]: `PosView.loadCatalogData` mengisi stok 50 kemasan ke setiap produk bila total stok 0 (`INITIAL_BALANCE`). Ini data palsu di jalur produksi (AGENTS.md §3 Aturan 3). Tidak diubah di Opsi 3 karena di luar lingkup; perlu persetujuan pemilik karena mengubah perilaku yang berjalan.
+- [OQ-L09]: `SettingsService.updateStoreSettings` belum memanggil `authorize(..., 'settings.manage')` (AGENTS.md §4.3). Tidak diubah di Opsi 3; usulan tugas terpisah.
 
 ---
 
@@ -243,7 +263,13 @@ Daftar tugas implementasi bertahap untuk SembakoOS. Mengikuti `AGENTS.md`, `PRD.
     - Penambahan fitur **`Unduh Excel (.xls)`** terformat rapi (`mso-width-source:userset`, kop toko, periode, dan baris total) menggantikan CSV mentah.
     - Penambahan fitur **`Ekspor PDF`** lengkap dengan **Modal Pratinjau Dokumen Laporan PDF (A4)**, Kop Identitas Toko, 4 Kotak Ringkasan KPI, Tabel + Total, dan Kolom Tanda Tangan Pemilik Toko.
     - **Pengujian**: Penambahan tes integrasi ekspor Excel & PDF di `tests/integration/services/reports.test.ts`, `pnpm typecheck` 0 error, dan `pnpm build` sukses.
-
-
-
+- 2026-10-31:
+  - **Opsi 3: Struk Thermal Terisolasi 58/80 mm & Pengaturan Struk (`receipt.service.ts`, `ReceiptModal.tsx`, `StoreSettingsTab.tsx`)**:
+    - Generator struk teks terisolasi dengan lebar kertas 58mm (32 col) / 80mm (48 col), watermark cetak ulang, cetak via iframe terisolasi, dan tombol "Cetak Struk Uji" di Pengaturan.
+    - 16 tes baru (`receipt.test.ts`, `receipt-print.test.ts`), `pnpm typecheck` lulus, `pnpm build` lulus.
+  - **Bugfix Valuasi Persediaan & Konversi Satuan Dasar (`report.service.ts`, `inventory.service.ts`, `ReportsView.tsx`, `InventoryView.tsx`)**:
+    - Mengatasi bug kalkulasi nilai persediaan Rp 40 Miliar akibat perkalian langsung kuantitas satuan dasar (`g` / `ml`) dengan biaya kemasan eceran tanpa dibagi faktor konversi kemasan (`conversion_factor`).
+    - Memperbaiki formula: `Math.round((currentStock * costPerUnit) / factor)`. Nilai stok 4 produk kini terhitung akurat sebesar **Rp 11.000.000**.
+    - Memperbaiki tampilan tabel di tab Status & Nilai Stok dan dokumen ekspor Excel/PDF agar menyajikan kuantitas kemasan dan rincian satuan dasar (misal `100 Sak (500.000 g)`), biaya satuan dengan keterangan kemasan (`Rp 65.000 / Sak 5 kg`), serta batas stok minimum yang relevan (`5 Sak`).
+    - 1 tes baru di `reports.test.ts`, total 113 tes lulus (100% green), `pnpm typecheck` bebas error, `pnpm build` sukses.
 

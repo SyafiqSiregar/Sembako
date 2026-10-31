@@ -16,6 +16,10 @@ import { db, type Sale, type SaleItem, type Payment } from '@/data/db';
 import { InventoryService } from '@/services/inventory.service';
 import { CheckoutService } from '@/services/checkout.service';
 import { formatRupiah } from '@/domain/money';
+import { authorize } from '@/domain/permissions';
+import { SettingsService } from '@/services/settings.service';
+import { buildReceiptHtml } from '@/services/receipt.service';
+import { printHtmlDocument } from '@/lib/print';
 import { useAuthStore } from '@/features/auth/authStore';
 import { PinPad } from '@/components/shared/PinPad';
 
@@ -27,9 +31,12 @@ interface TransactionRow {
 }
 
 export const TransactionHistoryView: React.FC = () => {
-  const { currentUser, activeSession } = useAuthStore();
+  const { currentUser, activeSession, roleCodes } = useAuthStore();
   const inventoryService = useMemo(() => new InventoryService(db), []);
   const checkoutService = useMemo(() => new CheckoutService(db, inventoryService), [inventoryService]);
+  const settingsService = useMemo(() => new SettingsService(db), []);
+  const [isReprinting, setIsReprinting] = useState(false);
+  const [reprintError, setReprintError] = useState<string | null>(null);
 
   const [transactions, setTransactions] = useState<TransactionRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -168,7 +175,34 @@ export const TransactionHistoryView: React.FC = () => {
   }, [transactions, statusFilter, dateFilter, searchQuery]);
 
   // View detail
+  const handleReprint = async () => {
+    if (!selectedSaleDetail) return;
+    setReprintError(null);
+    try {
+      authorize(roleCodes, 'sale.reprint', currentUser?.name);
+      setIsReprinting(true);
+      const store = await settingsService.getStoreSettings();
+      const { sale, items, payment, cashierName } = selectedSaleDetail;
+      await printHtmlDocument(
+        buildReceiptHtml({
+          sale,
+          items,
+          payment: payment ?? null,
+          cashierName,
+          store,
+          paperWidth: store.defaultPaperWidth,
+          reprintedAt: Date.now(),
+        })
+      );
+    } catch (err) {
+      setReprintError(err instanceof Error ? err.message : 'Gagal mencetak ulang struk.');
+    } finally {
+      setIsReprinting(false);
+    }
+  };
+
   const handleOpenDetail = async (sale: Sale, cashierName: string) => {
+    setReprintError(null);
     const items = await db.sale_items.where('sale_id').equals(sale.id).toArray();
     const payment = await db.payments.where('sale_id').equals(sale.id).first();
     const saleReturns = await db.returns.where('original_sale_id').equals(sale.id).toArray();
@@ -728,13 +762,20 @@ export const TransactionHistoryView: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-4 bg-white border-t border-stone-200 flex gap-2">
+            <div className="p-4 bg-white border-t border-stone-200 flex flex-col gap-2">
+              {reprintError && (
+                <div role="alert" className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold">
+                  {reprintError}
+                </div>
+              )}
               <button
-                onClick={() => window.print()}
-                className="flex-1 py-3 bg-[#14463C] text-white rounded-xl text-xs font-bold hover:bg-[#0F352E] flex items-center justify-center gap-2"
+                type="button"
+                onClick={handleReprint}
+                disabled={isReprinting}
+                className="w-full py-3 bg-[#14463C] text-white rounded-xl text-xs font-bold hover:bg-[#0F352E] flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <Printer className="w-4 h-4" />
-                Cetak Ulang Struk
+                {isReprinting ? 'Membuka cetak...' : 'Cetak Ulang Struk'}
               </button>
             </div>
           </div>

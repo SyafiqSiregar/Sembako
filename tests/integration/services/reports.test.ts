@@ -216,6 +216,59 @@ describe('ReportService (FR-RPT-01..08, AC-26..31)', () => {
     expect(inv.lowStockCount).toBe(1); // Minyak stok 4 <= min 5
   });
 
+  it('menghitung valuasi persediaan dengan benar saat satuan dasar gram/ml memiliki faktor konversi kemasan (AC-30 bugfix)', async () => {
+    // Tambah produk beras 5kg dengan basis gram dan faktor 5000
+    await db.products.add({
+      id: 'prod_beras_karung',
+      name: 'Beras Rojo Lele 5 kg',
+      sku: 'BRS-5KG',
+      category_id: 'cat_sembako',
+      base_unit_kind: 'weight',
+      base_unit_code: 'g',
+      min_stock_base: 5, // 5 sak
+      track_expiry: 0,
+      active: 1,
+      created_at: now,
+      created_by: 'admin',
+      updated_at: now,
+      updated_by: 'admin',
+      row_version: 1,
+    });
+
+    await db.product_units.add({
+      id: 'unit_beras_karung',
+      product_id: 'prod_beras_karung',
+      name: 'Sak 5 kg',
+      unit_code: 'sak',
+      conversion_factor: 5000,
+      price: 72000,
+      cost_x10k: 650000000, // Rp 65.000 modal per sak
+      is_base: 1,
+      active: 1,
+      created_at: now,
+      created_by: 'admin',
+      updated_at: now,
+      updated_by: 'admin',
+    });
+
+    // 100 sak = 500.000 gram
+    await db.inventory_balances.add({
+      product_id: 'prod_beras_karung',
+      batch_id: '',
+      qty_base: 500000,
+      last_movement_at: now,
+    });
+
+    const inv = await reportService.getInventoryValuationReport();
+    const berasItem = inv.items.find((i) => i.productId === 'prod_beras_karung');
+
+    expect(berasItem).toBeDefined();
+    // 500.000 gram / 5.000 gram = 100 sak. 100 sak * Rp 65.000 = Rp 6.500.000 (BUKAN Rp 32,5 Miliar!)
+    expect(berasItem?.packagingStock).toBe(100);
+    expect(berasItem?.valuationRupiah).toBe(6500000);
+    expect(berasItem?.status).toBe('Aman');
+  });
+
   it('merekonsiliasi penerimaan kas per sesi kasir (AC-30)', async () => {
     const sessions = await reportService.getCashierSessionsReport(now - 7200000, now);
 

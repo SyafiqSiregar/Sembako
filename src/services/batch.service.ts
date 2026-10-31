@@ -222,8 +222,9 @@ export class BatchService {
 
       // Hitung nilai estimasi risiko
       const unit = unitMap.get(`${batch.product_id}_1`) || (await this.db.product_units.where({ product_id: batch.product_id, is_base: 1 }).first());
+      const factor = unit?.conversion_factor && unit.conversion_factor > 0 ? unit.conversion_factor : 1;
       const costX10k = unit ? unit.cost_x10k : 0;
-      const valuationRupiah = Math.round((currentStock * (costX10k / 10000)));
+      const valuationRupiah = factor > 0 ? Math.round((currentStock * (costX10k / 10000)) / factor) : 0;
 
       results.push({
         batchId: batch.id,

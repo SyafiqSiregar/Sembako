@@ -19,6 +19,11 @@ import { CatalogService, type ProductDetail } from '@/services/catalog.service';
 import { InventoryService } from '@/services/inventory.service';
 import { CheckoutService, type CheckoutResult } from '@/services/checkout.service';
 import { HeldCartService } from '@/services/held-cart.service';
+import {
+  SettingsService,
+  DEFAULT_STORE_SETTINGS,
+  type StoreSettings,
+} from '@/services/settings.service';
 import { ProductSearchIndex } from '@/data/search/product-search';
 import { usePosStore, type CartLine } from './posStore';
 import { useAuthStore } from '@/features/auth/authStore';
@@ -50,8 +55,10 @@ export const PosView: React.FC = () => {
   const inventoryService = useMemo(() => new InventoryService(db), []);
   const checkoutService = useMemo(() => new CheckoutService(db, inventoryService), [inventoryService]);
   const heldCartService = useMemo(() => new HeldCartService(db), []);
+  const settingsService = useMemo(() => new SettingsService(db), []);
 
   // State
+  const [storeSettings, setStoreSettings] = useState<StoreSettings>(DEFAULT_STORE_SETTINGS);
   const [products, setProducts] = useState<ProductDetail[]>([]);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -83,6 +90,23 @@ export const PosView: React.FC = () => {
   const [isSavingQuickAdd, setIsSavingQuickAdd] = useState(false);
 
   const barcodeInputRef = useRef<HTMLInputElement>(null);
+
+  // Identitas toko & kebijakan struk dimuat sekali saat layar kasir dibuka. Struk tidak boleh
+  // memakai nilai bawaan komponen karena alamat/footer diatur pemilik di Pengaturan.
+  useEffect(() => {
+    let cancelled = false;
+    settingsService
+      .getStoreSettings()
+      .then((s) => {
+        if (!cancelled) setStoreSettings(s);
+      })
+      .catch((err) => {
+        console.error('Gagal memuat pengaturan toko untuk struk:', err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [settingsService]);
 
   // Load catalog & init index
   const loadCatalogData = async () => {
@@ -784,6 +808,7 @@ export const PosView: React.FC = () => {
         onClose={() => setIsReceiptOpen(false)}
         checkoutResult={checkoutResult}
         cashierName={currentUser?.name}
+        store={storeSettings}
       />
 
       {/* Held Carts Modal */}

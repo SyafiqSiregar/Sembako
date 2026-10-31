@@ -152,6 +152,7 @@ export class StocktakeService {
     for (const item of items) {
       const prod = await this.db.products.get(item.product_id);
       const baseUnit = await this.db.product_units.where('product_id').equals(item.product_id).first();
+      const factor = baseUnit?.conversion_factor && baseUnit.conversion_factor > 0 ? baseUnit.conversion_factor : 1;
       const unitCostX10k = baseUnit?.cost_x10k || 0;
 
       const systemQty = item.system_qty_snapshot ?? 0;
@@ -160,7 +161,7 @@ export class StocktakeService {
 
       const countedQty = item.counted_qty ?? systemQty;
       const variance = isCounted ? countedQty - systemQty : 0;
-      const varianceValueRupiah = Math.floor((variance * (unitCostX10k / 10000)));
+      const varianceValueRupiah = factor > 0 ? Math.floor((variance * (unitCostX10k / 10000)) / factor) : 0;
 
       totalVarianceQty += variance;
       totalVarianceRupiah += varianceValueRupiah;

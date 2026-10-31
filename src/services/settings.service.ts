@@ -11,7 +11,12 @@ export interface StoreSettings {
   autoLockMinutes: number;
   expiryWarningDays: number;
   returnDaysLimit: number;
+  defaultPaperWidth: PaperWidth;
+  showReturnPolicyOnReceipt: boolean;
 }
+
+export type PaperWidth = '58mm' | '80mm';
+export const PAPER_WIDTHS: readonly PaperWidth[] = ['58mm', '80mm'];
 
 export interface UserItem {
   id: string;
@@ -33,6 +38,8 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   autoLockMinutes: 15,
   expiryWarningDays: 30,
   returnDaysLimit: 7,
+  defaultPaperWidth: '58mm',
+  showReturnPolicyOnReceipt: true,
 };
 
 export class SettingsService {
@@ -63,6 +70,9 @@ export class SettingsService {
   async updateStoreSettings(newSettings: Partial<StoreSettings>, actorId: string): Promise<void> {
     const current = await this.getStoreSettings();
     const updated = { ...current, ...newSettings };
+    if (!PAPER_WIDTHS.includes(updated.defaultPaperWidth)) {
+      throw new Error('Lebar kertas struk harus 58mm atau 80mm');
+    }
     const now = this.clock.now();
 
     await this.db.app_settings.put({

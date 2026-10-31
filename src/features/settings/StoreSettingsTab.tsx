@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Store, ShieldCheck, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
-import { SettingsService, type StoreSettings } from '@/services/settings.service';
+import { Store, ShieldCheck, CheckCircle, AlertTriangle, Loader2, Printer } from 'lucide-react';
+import { SettingsService, type PaperWidth, type StoreSettings } from '@/services/settings.service';
+import { buildReceiptTestHtml } from '@/services/receipt.service';
+import { printHtmlDocument } from '@/lib/print';
 import { useAuthStore } from '@/features/auth/authStore';
+
+const PAPER_CHOICES: { value: PaperWidth; title: string; hint: string }[] = [
+  { value: '58mm', title: 'Kertas 58 mm', hint: 'Printer kasir mini / Bluetooth portabel (32 kolom)' },
+  { value: '80mm', title: 'Kertas 80 mm', hint: 'Printer kasir desktop standar (48 kolom)' },
+];
 
 interface StoreSettingsTabProps {
   settingsService: SettingsService;
@@ -13,6 +20,8 @@ export const StoreSettingsTab: React.FC<StoreSettingsTabProps> = ({ settingsServ
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [isTestPrinting, setIsTestPrinting] = useState(false);
+  const [testPrintError, setTestPrintError] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -43,6 +52,19 @@ export const StoreSettingsTab: React.FC<StoreSettingsTabProps> = ({ settingsServ
       setNotification({ type: 'error', message: msg });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleTestPrint = async () => {
+    if (!settings) return;
+    setTestPrintError(null);
+    setIsTestPrinting(true);
+    try {
+      await printHtmlDocument(buildReceiptTestHtml(settings, settings.defaultPaperWidth));
+    } catch (err) {
+      setTestPrintError(err instanceof Error ? err.message : 'Gagal membuka dialog cetak.');
+    } finally {
+      setIsTestPrinting(false);
     }
   };
 
@@ -142,6 +164,79 @@ export const StoreSettingsTab: React.FC<StoreSettingsTabProps> = ({ settingsServ
             />
           </div>
         </div>
+
+        {/* Struk & Printer */}
+        <fieldset className="pt-4 border-t border-border space-y-3">
+          <legend className="font-bold text-foreground uppercase tracking-wider text-[11px] mb-1">
+            Struk &amp; Printer
+          </legend>
+
+          <div role="radiogroup" aria-label="Lebar kertas struk bawaan" className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {PAPER_CHOICES.map((choice) => {
+              const active = settings.defaultPaperWidth === choice.value;
+              return (
+                <label
+                  key={choice.value}
+                  className={`min-h-[56px] p-3 rounded-card border flex items-start gap-3 cursor-pointer transition-colors focus-within:ring-2 focus-within:ring-ring ${
+                    active ? 'bg-secondary border-primary/40' : 'bg-card border-border hover:bg-muted'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="defaultPaperWidth"
+                    value={choice.value}
+                    checked={active}
+                    onChange={() => setSettings({ ...settings, defaultPaperWidth: choice.value })}
+                    className="mt-0.5 accent-primary"
+                  />
+                  <span className="flex flex-col">
+                    <span className="font-semibold text-foreground">{choice.title}</span>
+                    <span className="text-[11px] text-muted-foreground">{choice.hint}</span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+
+          <label className="flex items-start gap-3 min-h-[44px] cursor-pointer">
+            <input
+              type="checkbox"
+              checked={settings.showReturnPolicyOnReceipt}
+              onChange={(e) => setSettings({ ...settings, showReturnPolicyOnReceipt: e.target.checked })}
+              className="mt-0.5 accent-primary"
+            />
+            <span className="flex flex-col">
+              <span className="font-semibold text-foreground">Cantumkan batas retur di struk</span>
+              <span className="text-[11px] text-muted-foreground">
+                Mengikuti &ldquo;Batas Hari Retur&rdquo; di bawah. Tidak dicetak bila batas retur 0 hari.
+              </span>
+            </span>
+          </label>
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <button
+              type="button"
+              onClick={handleTestPrint}
+              disabled={isTestPrinting}
+              className="min-h-[44px] px-4 rounded-pill border border-input bg-card hover:bg-muted active:scale-[0.98] text-foreground text-xs font-semibold inline-flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {isTestPrinting ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <Printer className="size-4 text-muted-foreground" aria-hidden="true" />
+              )}
+              <span>{isTestPrinting ? 'Membuka cetak...' : 'Cetak Struk Uji'}</span>
+            </button>
+            <span className="text-[11px] text-muted-foreground">
+              Mencetak penggaris kolom dan identitas toko. Bukan transaksi dan tidak disimpan.
+            </span>
+          </div>
+          {testPrintError && (
+            <div role="alert" className="p-3 rounded-card bg-destructive text-destructive-foreground text-xs font-semibold">
+              {testPrintError}
+            </div>
+          )}
+        </fieldset>
 
         {/* Kebijakan Toko */}
         <div className="pt-4 border-t border-border space-y-4">

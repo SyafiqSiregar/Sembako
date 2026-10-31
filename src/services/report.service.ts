@@ -1,4 +1,5 @@
 import { SembakoDatabase } from '@/data/db';
+import { escapeHtml } from '@/lib/html';
 
 export interface SalesReportSummary {
   periodLabel: string;
@@ -48,6 +49,9 @@ export interface InventoryValuationItem {
   costPerUnit: number;
   valuationRupiah: number;
   status: 'Aman' | 'Menipis' | 'Habis';
+  unitName?: string;
+  conversionFactor?: number;
+  packagingStock?: number;
 }
 
 export interface ReportExportColumn {
@@ -77,15 +81,6 @@ export interface ReportExportPayload {
   columns: ReportExportColumn[];
   rows: (string | number)[][];
   footerRow?: (string | number)[];
-}
-
-function escapeHtml(value: string | number): string {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
 
 export class ReportService {
@@ -289,15 +284,20 @@ export class ReportService {
     const items: InventoryValuationItem[] = products.map((p) => {
       const currentStock = stockMap.get(p.id) || 0;
       const unit = unitMap.get(p.id);
+      const factor = unit?.conversion_factor && unit.conversion_factor > 0 ? unit.conversion_factor : 1;
       const costPerUnit = unit ? Math.floor(unit.cost_x10k / 10000) : 0;
-      const valuation = currentStock * costPerUnit;
+      const valuation = factor > 0 ? Math.round((currentStock * costPerUnit) / factor) : 0;
       totalValuation += valuation;
+
+      const minStockThreshold = p.min_stock_base > 0 && factor > 1 && p.min_stock_base < factor
+        ? p.min_stock_base * factor
+        : p.min_stock_base;
 
       let status: 'Aman' | 'Menipis' | 'Habis' = 'Aman';
       if (currentStock <= 0) {
         status = 'Habis';
         outOfStockCount++;
-      } else if (p.min_stock_base > 0 && currentStock <= p.min_stock_base) {
+      } else if (minStockThreshold > 0 && currentStock <= minStockThreshold) {
         status = 'Menipis';
         lowStockCount++;
       }
@@ -312,6 +312,9 @@ export class ReportService {
         costPerUnit,
         valuationRupiah: valuation,
         status,
+        unitName: unit?.name || unit?.unit_code || p.base_unit_code,
+        conversionFactor: factor,
+        packagingStock: Math.floor(currentStock / factor),
       };
     });
 

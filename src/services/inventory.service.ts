@@ -283,13 +283,20 @@ export class InventoryService {
     for (const p of prods) {
       const currentStock = await this.getProductStock(p.id);
       const baseUnit = await this.db.product_units.where('product_id').equals(p.id).first();
+      const factor = baseUnit?.conversion_factor && baseUnit.conversion_factor > 0 ? baseUnit.conversion_factor : 1;
       const unitCostX10k = baseUnit?.cost_x10k || 0;
-      const estimatedValue = Math.floor((currentStock * (unitCostX10k / 10000)));
+      const estimatedValue = factor > 0
+        ? Math.round((currentStock * (unitCostX10k / 10000)) / factor)
+        : 0;
+
+      const minStockThreshold = p.min_stock_base > 0 && factor > 1 && p.min_stock_base < factor
+        ? p.min_stock_base * factor
+        : p.min_stock_base;
 
       let status: 'safe' | 'low' | 'out_of_stock' = 'safe';
       if (currentStock <= 0) {
         status = 'out_of_stock';
-      } else if (currentStock <= p.min_stock_base) {
+      } else if (minStockThreshold > 0 && currentStock <= minStockThreshold) {
         status = 'low';
       }
 
@@ -304,6 +311,9 @@ export class InventoryService {
         unitCostX10k,
         estimatedValue,
         status,
+        unitName: baseUnit?.name || baseUnit?.unit_code || p.base_unit_code,
+        conversionFactor: factor,
+        packagingStock: Math.floor(currentStock / factor),
       });
     }
 
@@ -377,5 +387,8 @@ export interface ProductStockSummary {
   unitCostX10k: number;
   estimatedValue: number;
   status: 'safe' | 'low' | 'out_of_stock';
+  unitName?: string;
+  conversionFactor?: number;
+  packagingStock?: number;
 }
 
