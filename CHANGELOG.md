@@ -4,6 +4,29 @@ Catatan seluruh perubahan, implementasi fitur, pembaruan skema, dan keputusan ar
 
 Format mengacu pada [Keep a Changelog](https://keepachangelog.com/id/1.0.0/).
 
+## [Modernisasi Struk Kasir & Logo Toko Thermal (Fase 6)] - 2026-10-31
+
+**Penyempurnaan Desain Struk Kasir Profesional & Logo Toko Thermal (PRD FR-POS-10, Opsi 3 Lanjutan):**
+- **Domain Barcode Code-128 Murni (`src/domain/barcode/code128.ts`):**
+  - Encoder alfanumerik Code-128 Set B lengkap dengan checksum Modulo 103 dan stop code 13-modul.
+  - Fungsi `getCode128Bars` yang menghitung baris modul untuk rendering JSX tanpa `dangerouslySetInnerHTML` (AGENTS.md §4.3).
+  - Generator SVG `renderCode128Svg` berdimensi millimeter presisi dengan `shape-rendering="crispEdges"` agar barcode nomor struk terbaca scanner barcode kasir 1D.
+- **Konfigurasi Logo Toko & Filter Thermal (`src/services/settings.service.ts` & `StoreSettingsTab.tsx`):**
+  - Penambahan properti `storeLogo?: string` (Data URL Base64) dan `printReceiptBarcode?: boolean` (default `true`) pada `StoreSettings`.
+  - Pemrosesan gambar di sisi browser (*Canvas threshold filter* dari skill `ui-ux-pro-max`): otomatis mengonversi gambar logo berwarna ke 1-bit monochrome berkontras tinggi agar tajam pada head pemanas printer thermal.
+  - Komponen pratinjau logo di menu Pengaturan dengan badge status "Siap Cetak Thermal", tombol "Ganti", dan "Hapus".
+- **Generator Struk Kasir & Tipografi Retail (`src/services/receipt.service.ts`):**
+  - Header struk otomatis menyertakan logo toko rata tengah jika tersedia, atau monogram inisial toko (mis. `[ SB ]`) jika logo belum diunggah.
+  - Garis pemisah putus-putus khas retail (`border-top: 1px dashed #000;`), tipografi nama toko lebih tebal dan berwibawa, dan blok `TOTAL` tegas bergaris ganda.
+  - Barcode nomor struk dicetak di bawah ucapan terima kasih untuk scan retur instan.
+- **Pratinjau Kertas Thermal Nyata (`src/features/pos/ReceiptModal.tsx`):**
+  - Pratinjau struk di layar kasir bergaya kertas thermal fisik dengan bayangan lembut, logo toko nyata, dan barcode nomor struk.
+- **Integrasi Scan-to-Return di POS (`src/features/pos/PosView.tsx` & `TransactionHistoryView.tsx`):**
+  - Kasir dapat langsung men-scan barcode pada struk (`STR-...`) di kasir POS untuk secara otomatis membuka riwayat transaksi atau memproses retur barang.
+- **Verifikasi:** `pnpm typecheck` lulus; `pnpm test` 29 berkas / 148 tes lulus (100% green); `pnpm build` sukses.
+
+---
+
 ## [Barcode Internal Toko (EAN-13) & Cetak Label Rak/Produk (Fase 6, Opsi 1)] - 2026-10-31
 
 **Implementasi Fitur Barcode Internal & Label Stiker (PRD FR-CAT-11, rencana_lanjutan.md Opsi 1):**

@@ -112,3 +112,4 @@ describe('Domain: EAN-13 Barcode Generator (FR-CAT-11, rencana_lanjutan.md §1.6
     expect(svg).not.toContain('<script');
   });
 });
+

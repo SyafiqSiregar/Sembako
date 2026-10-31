@@ -1,6 +1,7 @@
 import type { Payment, Sale, SaleItem } from '@/data/db';
 import { formatRupiah } from '@/domain/money';
 import { formatQuantity } from '@/domain/quantity';
+import { renderCode128Svg } from '@/domain/barcode/code128';
 import { escapeHtml } from '@/lib/html';
 import type { PaperWidth, StoreSettings } from '@/services/settings.service';
 
@@ -34,6 +35,8 @@ export interface ReceiptPayload {
     | 'receiptFooter'
     | 'returnDaysLimit'
     | 'showReturnPolicyOnReceipt'
+    | 'storeLogo'
+    | 'printReceiptBarcode'
   >;
   paperWidth: PaperWidth;
   /** Diisi (epoch ms) hanya saat cetak ulang dari riwayat transaksi. */
@@ -174,13 +177,44 @@ export function buildReceiptLines(payload: ReceiptPayload): ReceiptLine[] {
   return lines;
 }
 
+function getStoreMonogram(storeName: string): string {
+  const words = storeName.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return 'SB';
+  if (words.length === 1) return words[0]!.slice(0, 2).toUpperCase();
+  return (words[0]![0]! + words[1]![0]!).toUpperCase();
+}
+
+interface WrapReceiptOptions {
+  title: string;
+  paperWidth: PaperWidth;
+  lines: ReceiptLine[];
+  logoDataUrl?: string;
+  storeName?: string;
+  barcodeSvg?: string;
+}
+
 /** Dokumen HTML mandiri siap cetak untuk printer thermal (`@page` mengikuti lebar kertas). */
 export function buildReceiptHtml(payload: ReceiptPayload): string {
-  return wrapReceiptDocument(
-    `Struk ${payload.sale.receipt_no}`,
-    payload.paperWidth,
-    buildReceiptLines(payload)
-  );
+  const { store, paperWidth, sale } = payload;
+  const moduleWidth = paperWidth === '58mm' ? 0.17 : 0.22;
+  const shouldPrintBarcode = store.printReceiptBarcode !== false && Boolean(sale.receipt_no);
+  const barcodeSvg = shouldPrintBarcode
+    ? renderCode128Svg(sale.receipt_no, {
+        moduleWidthMm: moduleWidth,
+        barHeightMm: 7.5,
+        showText: true,
+        fontSizeMm: 2.2,
+      })
+    : undefined;
+
+  return wrapReceiptDocument({
+    title: `Struk ${payload.sale.receipt_no}`,
+    paperWidth: payload.paperWidth,
+    lines: buildReceiptLines(payload),
+    logoDataUrl: store.storeLogo,
+    storeName: store.storeName,
+    barcodeSvg,
+  });
 }
 
 /**
@@ -213,14 +247,40 @@ export function buildReceiptTestLines(
 }
 
 export function buildReceiptTestHtml(
-  store: Pick<StoreSettings, 'storeName' | 'storeAddress' | 'storePhone'>,
+  store: Pick<StoreSettings, 'storeName' | 'storeAddress' | 'storePhone' | 'storeLogo'>,
   paperWidth: PaperWidth
 ): string {
-  return wrapReceiptDocument('Struk uji coba', paperWidth, buildReceiptTestLines(store, paperWidth));
+  const moduleWidth = paperWidth === '58mm' ? 0.17 : 0.22;
+  const barcodeSvg = renderCode128Svg('STR-TEST-PRINT', {
+    moduleWidthMm: moduleWidth,
+    barHeightMm: 7.5,
+    showText: true,
+    fontSizeMm: 2.2,
+  });
+
+  return wrapReceiptDocument({
+    title: 'Struk uji coba',
+    paperWidth,
+    lines: buildReceiptTestLines(store, paperWidth),
+    logoDataUrl: store.storeLogo,
+    storeName: store.storeName,
+    barcodeSvg,
+  });
 }
 
-function wrapReceiptDocument(title: string, paperWidth: PaperWidth, lines: ReceiptLine[]): string {
+function wrapReceiptDocument(options: WrapReceiptOptions): string {
+  const { title, paperWidth, lines, logoDataUrl, storeName, barcodeSvg } = options;
   const side = PAPER_LAYOUT[paperWidth].sideMm;
+
+  let headerVisual = '';
+  if (logoDataUrl) {
+    headerVisual = `<div class="logo-wrap"><img src="${escapeHtml(logoDataUrl)}" class="receipt-logo" alt="Logo Toko" /></div>`;
+  } else if (storeName) {
+    headerVisual = `<div class="monogram-wrap"><div class="monogram-badge">${escapeHtml(getStoreMonogram(storeName))}</div></div>`;
+  }
+
+  const barcodeBlock = barcodeSvg ? `<div class="receipt-barcode">${barcodeSvg}</div>` : '';
+
   const body = lines
     .map((l) => `<div class="l${l.bold ? ' b' : ''}">${escapeHtml(l.text) || '&nbsp;'}</div>`)
     .join('');
@@ -239,13 +299,43 @@ function wrapReceiptDocument(title: string, paperWidth: PaperWidth, lines: Recei
     padding: 2mm ${side}mm 8mm ${side}mm;
     font-family: 'Courier New', Courier, monospace;
     font-size: 2.5mm;
-    line-height: 1.3;
+    line-height: 1.35;
     color: #000;
+  }
+  .logo-wrap {
+    text-align: center;
+    margin-bottom: 1.5mm;
+  }
+  .receipt-logo {
+    display: block;
+    margin: 0 auto;
+    max-width: ${paperWidth === '58mm' ? '36mm' : '52mm'};
+    max-height: 20mm;
+    object-fit: contain;
+    filter: grayscale(100%) contrast(150%);
+  }
+  .monogram-wrap {
+    text-align: center;
+    margin-bottom: 1.5mm;
+  }
+  .monogram-badge {
+    display: inline-block;
+    padding: 0.8mm 2.2mm;
+    border: 1.2px solid #000;
+    border-radius: 2px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 2.6mm;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+  }
+  .receipt-barcode {
+    margin: 3mm auto 1mm auto;
+    text-align: center;
   }
   .l { white-space: pre; }
   .b { font-weight: 700; }
 </style>
 </head>
-<body>${body}</body>
+<body>${headerVisual}${body}${barcodeBlock}</body>
 </html>`;
 }

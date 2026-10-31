@@ -3,6 +3,7 @@ import { Printer, CheckCircle, RefreshCw, AlertTriangle, Loader2 } from 'lucide-
 import { type CheckoutResult } from '@/services/checkout.service';
 import { formatRupiah } from '@/domain/money';
 import { printHtmlDocument } from '@/lib/print';
+import { getCode128Bars } from '@/domain/barcode/code128';
 import {
   buildReceiptHtml,
   buildReceiptLines,
@@ -64,6 +65,19 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
 
   const lines = buildReceiptLines(payload);
 
+  const barcodeLayout = useMemo(() => {
+    if (!checkoutResult || store.printReceiptBarcode === false) return null;
+    const moduleWidth = paperWidth === '58mm' ? 0.17 : 0.22;
+    return getCode128Bars(checkoutResult.sale.receipt_no, moduleWidth);
+  }, [checkoutResult, store.printReceiptBarcode, paperWidth]);
+
+  const monogram = useMemo(() => {
+    const words = store.storeName.trim().split(/\s+/).filter(Boolean);
+    if (words.length === 0) return 'SB';
+    if (words.length === 1) return words[0]!.slice(0, 2).toUpperCase();
+    return (words[0]![0]! + words[1]![0]!).toUpperCase();
+  }, [store.storeName]);
+
   const handlePrint = async () => {
     setIsPrinting(true);
     setPrintError(null);
@@ -124,16 +138,70 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
         </div>
 
         {/* Pratinjau kertas thermal */}
-        <div className="p-5 overflow-y-auto bg-muted flex-1 flex justify-center">
+        <div className="p-5 overflow-y-auto bg-stone-100 dark:bg-stone-900 flex-1 flex justify-center items-start">
           <div
-            className={`bg-card text-foreground border border-border shadow-sm p-3 font-mono text-xs leading-snug ${PREVIEW_WIDTH[paperWidth]} box-content`}
+            className={`bg-white text-black border border-stone-300 dark:border-stone-700 shadow-md p-3.5 font-mono text-xs leading-snug ${PREVIEW_WIDTH[paperWidth]} box-content relative select-text`}
             aria-label={`Pratinjau struk ${paperWidth}`}
           >
+            {/* Header Visual: Logo atau Monogram Inisial */}
+            {store.storeLogo ? (
+              <div className="mb-2 text-center">
+                <img
+                  src={store.storeLogo}
+                  alt="Logo Toko"
+                  className="mx-auto max-h-12 max-w-[140px] object-contain filter grayscale contrast-150"
+                />
+              </div>
+            ) : (
+              <div className="mb-2 text-center">
+                <span className="inline-block px-2 py-0.5 border border-black rounded text-[10px] font-bold tracking-widest font-mono">
+                  [{monogram}]
+                </span>
+              </div>
+            )}
+
+            {/* Baris-baris struk */}
             {lines.map((line, i) => (
               <div key={i} className={`whitespace-pre ${line.bold ? 'font-bold' : ''}`}>
                 {line.text || '\u00a0'}
               </div>
             ))}
+
+            {/* Barcode Nomor Struk Code-128 */}
+            {barcodeLayout && barcodeLayout.bars.length > 0 && (
+              <div className="mt-3 pt-1 text-center flex flex-col items-center">
+                <svg
+                  viewBox={`0 0 ${barcodeLayout.totalWidthMm} 10`}
+                  width={`${barcodeLayout.totalWidthMm}mm`}
+                  height="10mm"
+                  shapeRendering="crispEdges"
+                  className="mx-auto"
+                >
+                  {barcodeLayout.bars.map((bar, i) => (
+                    <rect
+                      key={i}
+                      x={bar.xMm}
+                      y={0}
+                      width={bar.widthMm}
+                      height={7.5}
+                      fill="#000000"
+                    />
+                  ))}
+                  <text
+                    x={barcodeLayout.totalWidthMm / 2}
+                    y={9.5}
+                    fontFamily="Courier New, monospace"
+                    fontSize="2mm"
+                    fontWeight="bold"
+                    textAnchor="middle"
+                    fill="#000000"
+                    letterSpacing="0.5px"
+                  >
+                    {barcodeLayout.text}
+                  </text>
+                </svg>
+              </div>
+            )}
           </div>
         </div>
 

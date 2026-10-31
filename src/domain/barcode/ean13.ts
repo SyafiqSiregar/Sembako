@@ -217,3 +217,4 @@ export function renderEan13Svg(code: string, options: RenderEan13SvgOptions = {}
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalWidthMm} ${totalHeightMm}" width="${totalWidthMm}mm" height="${totalHeightMm}mm" shape-rendering="crispEdges" role="img" aria-label="Barcode ${code}">${rects}${textSvg}</svg>`;
 }
+

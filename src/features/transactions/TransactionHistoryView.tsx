@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Search,
   Receipt,
@@ -40,10 +41,21 @@ export const TransactionHistoryView: React.FC = () => {
 
   const [transactions, setTransactions] = useState<TransactionRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [dateFilter, setDateFilter] = useState<'today' | '7days' | 'all'>('today');
+  const [dateFilter, setDateFilter] = useState<'today' | '7days' | 'all'>(
+    searchParams.get('search') ? 'all' : 'today'
+  );
   const [returnDaysLimit, setReturnDaysLimit] = useState(7);
+
+  useEffect(() => {
+    const q = searchParams.get('search');
+    if (q) {
+      setSearchQuery(q);
+      setDateFilter('all');
+    }
+  }, [searchParams]);
 
   // Modals
   const [selectedSaleDetail, setSelectedSaleDetail] = useState<{

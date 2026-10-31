@@ -185,6 +185,7 @@ Urutan: Opsi 3 (struk) → Opsi 2 (auto-lock) → Opsi 1 (barcode & label) → O
 - [x] **T6.03 Generator struk monospace** — `src/services/receipt.service.ts` (32 kolom/58mm, 48 kolom/80mm, penanda SALINAN saat cetak ulang, struk uji tanpa data rekaan). Tes: `tests/unit/services/receipt.test.ts` (11), `tests/integration/services/receipt-print.test.ts` (5).
 - [x] **T6.04 Redesain `ReceiptModal` + sambungan Pengaturan + cetak ulang riwayat** — identitas & footer struk kini dari Pengaturan; token desain; cetak ulang lewat `sale.reprint`.
 - [x] **T6.05 Bagian "Struk & Printer" di Pengaturan** — pilihan kertas bawaan, sakelar batas retur, tombol Cetak Struk Uji.
+- [x] **T6.06 Modernisasi struk kasir, logo toko (monochrome filter), & barcode nomor struk Code-128** — generator Code-128 murni tanpa dependensi eksternal (`code128.ts`), kompresi & threshold kontras logo thermal di browser (`StoreSettingsTab.tsx`), header logo & monogram inisial fallback di struk, divider putus-putus retail, barcode no. struk untuk scan-to-return instan di kasir POS. Tes: `tests/unit/domain/code128.test.ts` (6), `tests/unit/services/receipt.test.ts` (15).
 - Belum teruji di perangkat: RC-M01–M04 (printer thermal 58/80 mm, Bluetooth/USB, tablet Android).
 
 ### Opsi 1 — Barcode Internal Toko (EAN-13) & Cetak Label Rak/Produk (FR-CAT-11)
@@ -287,4 +288,11 @@ Urutan: Opsi 3 (struk) → Opsi 2 (auto-lock) → Opsi 1 (barcode & label) → O
     - **Antarmuka Modal Cetak Interaktif**: `LabelPrintModal.tsx` dengan pencarian barang cepat, pemilih ukuran kertas, stepper jumlah label, pratinjau live SVG realtime, dialog peringatan skala cetak 100%, dan cetak via iframe terisolasi (`printHtmlDocument`).
     - **Integrasi UI Katalog**: Tombol "Cetak Label" di toolbar katalog produk, tombol "Cetak Label" & "+ Barcode" per baris barang yang belum berbarcode, dan tombol "Buat Barcode Internal" pada formulir produk `ProductFormModal.tsx`.
     - **Pengujian Lengkap**: 25 tes baru (12 unit `ean13.test.ts`, 7 integrasi `internal-barcode.test.ts`, 6 unit `label.test.ts`). Total **138 tes lulus (100% green)**, `pnpm typecheck` 0 error, dan `pnpm build` sukses.
+  - **Modernisasi Struk Kasir & Logo Toko Thermal (`code128.ts`, `receipt.service.ts`, `StoreSettingsTab.tsx`, `ReceiptModal.tsx`, `PosView.tsx`, `TransactionHistoryView.tsx`)**:
+    - **Generator Barcode Code-128 Murni**: Checksum Modulo 103, layout koordinat bar JSX murni tanpa `dangerouslySetInnerHTML`, SVG crispEdges (`src/domain/barcode/code128.ts`).
+    - **Upload & Filter Thermal Logo Toko**: Kompresi canvas client-side ke max 240px lebar dan thresholding kontras 1-bit monochrome (`ui-ux-pro-max`) tersimpan offline di IndexedDB `app_settings` (`StoreSettingsTab.tsx`).
+    - **Desain Struk Retail Elegan**: Header logo toko dengan fallback monogram inisial otomatis (`[ SB ]`), garis pemisah putus-putus retail, blok TOTAL mencolok, dan barcode nomor struk di bagian bawah struk (`receipt.service.ts`).
+    - **Pratinjau Kertas Thermal Realistis**: Latar putih, bayangan kertas lembut, serta logo dan barcode struk tampil nyata di layar kasir (`ReceiptModal.tsx`).
+    - **Scan-to-Return di POS**: Scanner kasir mengenali barcode nomor struk `STR-...` dan langsung membuka halaman transaksi terkait untuk retur atau cetak ulang instan (`PosView.tsx` & `TransactionHistoryView.tsx`).
+    - **Pengujian**: 10 tes baru (6 unit `code128.test.ts`, 4 unit `receipt.test.ts`). Total **29 berkas uji, 148 tes lulus (100% green)**, `pnpm typecheck` bebas error, `pnpm build` sukses.
 

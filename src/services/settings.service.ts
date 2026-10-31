@@ -13,6 +13,8 @@ export interface StoreSettings {
   returnDaysLimit: number;
   defaultPaperWidth: PaperWidth;
   showReturnPolicyOnReceipt: boolean;
+  storeLogo?: string;
+  printReceiptBarcode?: boolean;
 }
 
 export type PaperWidth = '58mm' | '80mm';
@@ -40,6 +42,7 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   returnDaysLimit: 7,
   defaultPaperWidth: '58mm',
   showReturnPolicyOnReceipt: true,
+  printReceiptBarcode: true,
 };
 
 export class SettingsService {

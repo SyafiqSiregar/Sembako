@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Store, ShieldCheck, CheckCircle, AlertTriangle, Loader2, Printer } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Store, ShieldCheck, CheckCircle, AlertTriangle, Loader2, Printer, Image as ImageIcon, Upload, Trash2 } from 'lucide-react';
 import { SettingsService, type PaperWidth, type StoreSettings } from '@/services/settings.service';
 import { buildReceiptTestHtml } from '@/services/receipt.service';
 import { printHtmlDocument } from '@/lib/print';
@@ -22,6 +22,62 @@ export const StoreSettingsTab: React.FC<StoreSettingsTabProps> = ({ settingsServ
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [isTestPrinting, setIsTestPrinting] = useState(false);
   const [testPrintError, setTestPrintError] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        // Skalakan ke lebar proporsional max 240px
+        const maxWidth = 240;
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // Latar belakang putih bersih
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Optimalisasi Thermal Print (ui-ux-pro-max): Grayscale & Contrast Threshold
+        const imgData = ctx.getImageData(0, 0, width, height);
+        const data = imgData.data;
+        for (let i = 0; i < data.length; i += 4) {
+          const brightness = 0.299 * data[i]! + 0.587 * data[i + 1]! + 0.114 * data[i + 2]!;
+          // Threshold: pixel gelap (<180) menjadi hitam pekat, pixel terang jadi putih bersih
+          const val = brightness < 185 ? 0 : 255;
+          data[i] = val;
+          data[i + 1] = val;
+          data[i + 2] = val;
+        }
+        ctx.putImageData(imgData, 0, 0);
+
+        const compressed = canvas.toDataURL('image/png');
+        setSettings((prev) => (prev ? { ...prev, storeLogo: compressed } : null));
+        if (logoInputRef.current) logoInputRef.current.value = '';
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveLogo = () => {
+    setSettings((prev) => (prev ? { ...prev, storeLogo: undefined } : null));
+    if (logoInputRef.current) logoInputRef.current.value = '';
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -166,10 +222,87 @@ export const StoreSettingsTab: React.FC<StoreSettingsTabProps> = ({ settingsServ
         </div>
 
         {/* Struk & Printer */}
-        <fieldset className="pt-4 border-t border-border space-y-3">
+        <fieldset className="pt-4 border-t border-border space-y-4">
           <legend className="font-bold text-foreground uppercase tracking-wider text-[11px] mb-1">
             Struk &amp; Printer
           </legend>
+
+          {/* Logo Toko */}
+          <div className="p-4 rounded-card border border-border bg-muted/30 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="font-semibold text-foreground text-xs block">Logo Toko pada Struk</span>
+                <span className="text-[11px] text-muted-foreground block">
+                  Dicetak di bagian paling atas struk. Otomatis dioptimalkan untuk printer thermal hitam-putih.
+                </span>
+              </div>
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                onChange={handleLogoUpload}
+                className="hidden"
+                id="store-logo-file-input"
+              />
+            </div>
+
+            {settings.storeLogo ? (
+              <div className="flex flex-col sm:flex-row items-center gap-4 p-3 bg-card border border-border rounded-card">
+                <div className="p-2 bg-white rounded border border-border flex items-center justify-center shrink-0">
+                  <img
+                    src={settings.storeLogo}
+                    alt="Logo Toko"
+                    className="max-h-14 max-w-[140px] object-contain filter grayscale contrast-150"
+                  />
+                </div>
+                <div className="flex-1 text-center sm:text-left space-y-1">
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                    <CheckCircle className="size-3" /> Siap Cetak Thermal (1-Bit)
+                  </span>
+                  <p className="text-[11px] text-muted-foreground">
+                    Logo tersimpan di tablet secara lokal &amp; offline.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => logoInputRef.current?.click()}
+                    className="h-8 px-3 rounded-pill border border-input bg-background hover:bg-muted font-medium text-[11px] text-foreground flex items-center gap-1.5"
+                  >
+                    <Upload className="size-3.5" /> Ganti
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRemoveLogo}
+                    className="h-8 px-3 rounded-pill border border-destructive/30 text-destructive-foreground hover:bg-destructive/10 font-medium text-[11px] flex items-center gap-1.5"
+                  >
+                    <Trash2 className="size-3.5 text-destructive" /> Hapus
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 bg-card border border-dashed border-border rounded-card">
+                <div className="flex items-center gap-3">
+                  <div className="size-10 rounded-card bg-muted flex items-center justify-center text-muted-foreground shrink-0 border border-border">
+                    <ImageIcon className="size-5" />
+                  </div>
+                  <div>
+                    <span className="font-medium text-foreground block text-xs">Belum ada logo terpasang</span>
+                    <span className="text-[11px] text-muted-foreground block">
+                      Struk akan menampilkan inisial toko: <strong className="font-mono text-foreground">[{settings.storeName.trim().slice(0, 2).toUpperCase() || 'SB'}]</strong>
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => logoInputRef.current?.click()}
+                  className="h-8 px-3.5 rounded-pill bg-primary text-primary-foreground hover:bg-primary/90 font-medium text-[11px] flex items-center gap-1.5 shrink-0"
+                >
+                  <Upload className="size-3.5" /> Unggah Logo
+                </button>
+              </div>
+            )}
+          </div>
 
           <div role="radiogroup" aria-label="Lebar kertas struk bawaan" className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {PAPER_CHOICES.map((choice) => {
@@ -209,6 +342,21 @@ export const StoreSettingsTab: React.FC<StoreSettingsTabProps> = ({ settingsServ
               <span className="font-semibold text-foreground">Cantumkan batas retur di struk</span>
               <span className="text-[11px] text-muted-foreground">
                 Mengikuti &ldquo;Batas Hari Retur&rdquo; di bawah. Tidak dicetak bila batas retur 0 hari.
+              </span>
+            </span>
+          </label>
+
+          <label className="flex items-start gap-3 min-h-[44px] cursor-pointer">
+            <input
+              type="checkbox"
+              checked={settings.printReceiptBarcode !== false}
+              onChange={(e) => setSettings({ ...settings, printReceiptBarcode: e.target.checked })}
+              className="mt-0.5 accent-primary"
+            />
+            <span className="flex flex-col">
+              <span className="font-semibold text-foreground">Cetak barcode nomor struk di bagian bawah</span>
+              <span className="text-[11px] text-muted-foreground">
+                Memudahkan kasir men-scan nomor struk dengan barcode scanner untuk retur barang atau cek riwayat cepat.
               </span>
             </span>
           </label>

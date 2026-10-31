@@ -194,5 +194,42 @@ describe('Struk thermal (RC-01..RC-08)', () => {
 
     expect(buildReceiptHtml({ ...base, paperWidth: '80mm' })).toContain('size: 80mm auto');
   });
+
+  it('dokumen HTML: menampilkan logo toko jika dikonfigurasi', () => {
+    const base = payload();
+    const withLogo = buildReceiptHtml({
+      ...base,
+      store: { ...base.store, storeLogo: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==' },
+    });
+    expect(withLogo).toContain('class="receipt-logo"');
+    expect(withLogo).toContain('data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==');
+  });
+
+  it('dokumen HTML: menampilkan monogram inisial jika toko belum mengunggah logo', () => {
+    const base = payload();
+    const withoutLogo = buildReceiptHtml({
+      ...base,
+      store: { ...base.store, storeName: 'Toko Berkah Sejahtera', storeLogo: undefined },
+    });
+    expect(withoutLogo).toContain('class="monogram-badge"');
+    expect(withoutLogo).toContain('TB');
+  });
+
+  it('dokumen HTML: merender barcode nomor struk Code-128 di bagian bawah secara default', () => {
+    const base = payload();
+    const html = buildReceiptHtml(base);
+    expect(html).toContain('class="receipt-barcode"');
+    expect(html).toContain('shape-rendering="crispEdges"');
+    expect(html).toContain(base.sale.receipt_no);
+  });
+
+  it('dokumen HTML: tidak mencetak barcode nomor struk jika dimatikan di pengaturan', () => {
+    const base = payload();
+    const htmlNoBarcode = buildReceiptHtml({
+      ...base,
+      store: { ...base.store, printReceiptBarcode: false },
+    });
+    expect(htmlNoBarcode).not.toContain('class="receipt-barcode"');
+  });
 });
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Search,
   Barcode,
@@ -33,6 +34,7 @@ import { ReceiptModal } from './ReceiptModal';
 import { HeldCartsModal } from './HeldCartsModal';
 
 export const PosView: React.FC = () => {
+  const navigate = useNavigate();
   const { currentUser, activeSession } = useAuthStore();
   const {
     items,
@@ -180,7 +182,25 @@ export const PosView: React.FC = () => {
   const handleBarcodeSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const code = barcodeInput.trim();
-    if (!code || !searchIndex) return;
+    if (!code) return;
+
+    // Scan Barcode Nomor Struk (STR-...) untuk retur / cek riwayat transaksi cepat
+    if (code.toUpperCase().startsWith('STR-')) {
+      setBarcodeInput('');
+      db.sales.where('receipt_no').equals(code).first().then((sale) => {
+        if (sale) {
+          showNotification('success', `Struk #${code} terdeteksi. Membuka riwayat transaksi...`);
+          setTimeout(() => {
+            navigate(`/transactions?search=${encodeURIComponent(code)}`);
+          }, 600);
+        } else {
+          showNotification('error', `Nomor struk ${code} tidak ditemukan.`);
+        }
+      });
+      return;
+    }
+
+    if (!searchIndex) return;
 
     const hit = searchIndex.searchBarcode(code);
     if (hit) {
