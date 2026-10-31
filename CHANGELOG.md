@@ -4,7 +4,48 @@ Catatan seluruh perubahan, implementasi fitur, pembaruan skema, dan keputusan ar
 
 Format mengacu pada [Keep a Changelog](https://keepachangelog.com/id/1.0.0/).
 
-## [Bugfix Valuasi Persediaan & Konversi Satuan Dasar] - 2026-10-31
+## [Barcode Internal Toko (EAN-13) & Cetak Label Rak/Produk (Fase 6, Opsi 1)] - 2026-10-31
+
+**Implementasi Fitur Barcode Internal & Label Stiker (PRD FR-CAT-11, rencana_lanjutan.md Opsi 1):**
+- **Domain Barcode EAN-13 Murni (`src/domain/barcode/ean13.ts`):**
+  - Implementasi standar internasional GS1 restricted distribution prefix `20`–`29` untuk item internal toko sembako curah/repack (beras karungan repack, gula curah kiloan, telur pack).
+  - Algoritma perhitungan Check Digit Modulo 10 dengan bobot selang-seling 1 dan 3.
+  - Encoder 95 modul EAN-13 (Left Guard `101`, 6 digit kiri dengan parity map L/G dari digit pertama, Center Guard `01010`, 6 digit kanan pola R, Right Guard `101`).
+  - SVG Renderer murni tanpa dependensi eksternal: menghasilkan elemen SVG berdimensi presisi milimeter, baris garis hitam dengan `shape-rendering="crispEdges"` agar tajam saat dicetak printer thermal 203 DPI, guard bars lebih panjang 2mm, dan label teks angka di bagian bawah.
+- **Layanan Pembuatan Barcode Atomik (`CatalogService.assignInternalBarcode`):**
+  - Eksekusi di dalam satu transaksi Dexie atomic (`products`, `product_units`, `product_barcodes`, `counters`, `audit_logs`).
+  - Sequence generator terpusat menggunakan tabel `counters` (`internal_barcode_seq`), dimulai dari `1` menghasilkan barcode berformat `2000000000015`.
+  - Proteksi tabrakan sequence hingga 50 iterasi otomatis jika terdapat kode yang telah terdaftar.
+  - Verifikasi hak akses `authorize(roles, 'catalog.manage')`.
+  - Pencatatan jejak audit append-only (`catalog.barcode_internal_create`) lengkap dengan snapshot nama produk, satuan, dan barcode yang dibuat.
+- **Generator Dokumen Cetak Label Multi-Ukuran (`src/services/label.service.ts`):**
+  - Mendukung 3 preset kertas stiker:
+    1. Roll Thermal 50×30 mm (1 label per halaman continuous).
+    2. Roll Thermal 40×30 mm (1 label per halaman continuous, modul 0.25mm ringkas).
+    3. Lembar HVS / Label Stiker A4 3×8 (24 label per lembar, ukuran 70×37 mm dengan margin 10mm).
+  - Styling cetak `@page` khusus print dengan margin nol dan penanganan page-break terisolasi.
+  - Konfigurasi `showPrice`: bawaan mati (`false`) untuk menghindari kerugian toko bila harga katalog berubah tetapi label fisik belum diganti (BL-08). Menampilkan peringatan jelas saat diaktifkan.
+- **Antarmuka Modal Cetak Label Interaktif (`src/features/catalog/LabelPrintModal.tsx`):**
+  - Kotak pencarian produk katalog cepat dengan status barcode (tanda centang hijau bila sudah ada barcode, tombol "+ Buat Barcode" bila belum berbarcode).
+  - Panel daftar cetak dengan stepper kuantitas lembar per barang (`-` / `+`) dan tombol hapus.
+  - Tab pemilihan ukuran kertas (Thermal 50×30, 40×30, A4 3×8) dengan ringkasan total stiker dan lembar kertas.
+  - Pratinjau langsung (Live Preview) berskala proporsional yang merender SVG barcode secara nyata.
+  - Dialog catatan penting panduan cetak (atur skala printer 100% / Actual Size).
+  - Tombol aksi "Cetak N Label" yang mengalirkan HTML ke iframe tersembunyi via `printHtmlDocument`.
+- **Integrasi Halaman Katalog (`ProductCatalogView.tsx` & `ProductFormModal.tsx`):**
+  - Tombol toolbar utama "Cetak Label" di samping tombol tambah produk.
+  - Tombol aksi per baris produk: ikon printer "Cetak Label" dan tombol "+ Barcode" untuk membuat barcode internal secara instan.
+  - Tombol "Buat Barcode Internal" di samping input barcode satuan eceran pada formulir produk `ProductFormModal.tsx`.
+- **Verifikasi & Pengujian:**
+  - 12 unit tests di `tests/unit/domain/ean13.test.ts` (termasuk property-based testing dengan `fast-check` untuk ratusan ribu kemungkinan digit).
+  - 7 integration tests di `tests/integration/catalog/internal-barcode.test.ts` (verifikasi transaksi atomik, sequence counter, audit log, otorisasi, penolakan barcode ganda).
+  - 6 unit tests di `tests/unit/services/label.test.ts` (validasi HTML print sheet, CSS page rules, format harga, preset ukuran).
+  - Total pengujian: **28 berkas uji, 138 tes lulus (100% green)**.
+  - `pnpm typecheck` lulus 0 error, `pnpm build` sukses.
+
+---
+
+
 
 **Perbaikan Bug Unit Conversion Mismatch (AGENTS.md §4.1, PRD FR-RPT-05, AC-30):**
 - **Penyebab masalah nilai stok Rp 40 Miliar:**

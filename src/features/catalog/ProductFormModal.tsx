@@ -3,7 +3,9 @@ import { type Category, type ProductDetail } from '@/services/catalog.service';
 import { CatalogService } from '@/services/catalog.service';
 import { db } from '@/data/db';
 import { parseRupiah, formatRupiah } from '@/domain/money';
-import { X, AlertTriangle, Package, Check, Layers, Barcode as BarcodeIcon, Info, Calendar } from 'lucide-react';
+import { isInternalBarcode } from '@/domain/barcode/ean13';
+import { useAuthStore } from '@/features/auth/authStore';
+import { X, AlertTriangle, Package, Check, Layers, Barcode as BarcodeIcon, Info, Calendar, Sparkles } from 'lucide-react';
 
 interface ProductFormModalProps {
   isOpen: boolean;
@@ -140,6 +142,35 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
   const calculatedWholesaleCost = parsedCost * (parsedWholesaleFactor || 1);
   const calculatedWholesaleProfit = parsedWholesalePrice - calculatedWholesaleCost;
+
+  const [isGeneratingInternalBc, setIsGeneratingInternalBc] = useState(false);
+  const { currentUser, roleCodes } = useAuthStore();
+
+  const handleGenerateInternalBarcode = async () => {
+    if (!editingProduct || !currentUser) return;
+    const base = editingProduct.units.find((u) => u.is_base === 1) || editingProduct.units[0];
+    if (!base) return;
+
+    try {
+      setIsGeneratingInternalBc(true);
+      setError(null);
+      const res = await catalogService.assignInternalBarcode({
+        actor: {
+          id: currentUser.id,
+          name: currentUser.name,
+          roles: roleCodes,
+        },
+        productId: editingProduct.product.id,
+        productUnitId: base.id,
+      });
+      setBaseBarcode(res.barcode);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Gagal membuat barcode internal';
+      setError(msg);
+    } finally {
+      setIsGeneratingInternalBc(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -548,7 +579,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </div>
 
             {/* Barcode Eceran */}
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1.5">
               <label className="font-semibold text-foreground flex items-center justify-between">
                 <span>Barcode Eceran (Bisa di-scan)</span>
                 <span className="text-[11px] text-muted-foreground font-normal">Arahkan scanner ke bungkus</span>
@@ -562,6 +593,33 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                   placeholder="Scan atau ketik barcode eceran..."
                   className="h-10 pl-9 pr-3 w-full bg-background border border-input rounded-card text-foreground font-mono text-xs focus:outline-none focus:ring-2 focus:ring-ring"
                 />
+              </div>
+
+              {/* Bantuan Barcode Internal */}
+              <div className="flex items-center justify-between text-[11px] pt-1 border-t border-border/50">
+                <span className="text-muted-foreground">Barang repack / curah tanpa barcode?</span>
+                {editingProduct ? (
+                  <button
+                    type="button"
+                    onClick={handleGenerateInternalBarcode}
+                    disabled={isGeneratingInternalBc || Boolean(baseBarcode.trim() && isInternalBarcode(baseBarcode.trim()))}
+                    className="text-primary hover:underline font-semibold flex items-center gap-1 disabled:opacity-50 disabled:no-underline cursor-pointer"
+                    title={baseBarcode.trim() && isInternalBarcode(baseBarcode.trim()) ? 'Sudah memiliki barcode internal toko' : 'Buat barcode internal otomatis'}
+                  >
+                    <Sparkles className="size-3" />
+                    <span>
+                      {baseBarcode.trim() && isInternalBarcode(baseBarcode.trim())
+                        ? 'Barcode Internal Aktif'
+                        : isGeneratingInternalBc
+                        ? 'Membuat Barcode...'
+                        : 'Buat Barcode Internal (EAN-13)'}
+                    </span>
+                  </button>
+                ) : (
+                  <span className="text-muted-foreground italic">
+                    Simpan barang dulu, lalu buat barcode internal
+                  </span>
+                )}
               </div>
             </div>
           </div>

@@ -6,6 +6,9 @@ import { formatRupiah } from '@/domain/money';
 import { useAuthStore } from '@/features/auth/authStore';
 import { ProductFormModal } from './ProductFormModal';
 import { CsvImportModal } from './CsvImportModal';
+import { LabelPrintModal } from './LabelPrintModal';
+import { isInternalBarcode } from '@/domain/barcode/ean13';
+import { SettingsService } from '@/services/settings.service';
 import {
   Package,
   Plus,
@@ -21,10 +24,12 @@ import {
   UploadCloud,
   RotateCcw,
   HelpCircle,
+  Printer,
+  Sparkles,
 } from 'lucide-react';
 
 export const ProductCatalogView: React.FC = () => {
-  const { currentUser } = useAuthStore();
+  const { currentUser, roleCodes } = useAuthStore();
   const [products, setProducts] = useState<ProductDetail[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -37,6 +42,9 @@ export const ProductCatalogView: React.FC = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const [isDuplicateGuideOpen, setIsDuplicateGuideOpen] = useState(false);
+  const [isLabelModalOpen, setIsLabelModalOpen] = useState(false);
+  const [labelModalProduct, setLabelModalProduct] = useState<ProductDetail | null>(null);
+  const [storeName, setStoreName] = useState('TOKO SEMBAKO BERKAH');
   const [editingProduct, setEditingProduct] = useState<ProductDetail | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
@@ -62,6 +70,12 @@ export const ProductCatalogView: React.FC = () => {
       const prods = await catalogService.listProducts({ activeOnly: false });
       setProducts(prods);
       productSearchIndex.setItems(prods);
+
+      const settingsService = new SettingsService(db);
+      const settings = await settingsService.getStoreSettings();
+      if (settings?.storeName) {
+        setStoreName(settings.storeName);
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -137,6 +151,42 @@ export const ProductCatalogView: React.FC = () => {
     }
   };
 
+  const handleOpenLabelModal = (product?: ProductDetail) => {
+    setLabelModalProduct(product || null);
+    setIsLabelModalOpen(true);
+  };
+
+  const handleCreateInternalBarcode = async (item: ProductDetail) => {
+    if (!currentUser) return;
+    const baseUnit = item.units[0];
+    if (!baseUnit) {
+      alert('Produk tidak memiliki satuan jual');
+      return;
+    }
+
+    try {
+      await catalogService.assignInternalBarcode({
+        actor: {
+          id: currentUser.id,
+          name: currentUser.name,
+          roles: roleCodes,
+        },
+        productId: item.product.id,
+        productUnitId: baseUnit.id,
+      });
+
+      await loadData();
+
+      // Buka modal cetak label dengan produk ini langsung terpilih
+      const updatedProduct = (await catalogService.getProductById(item.product.id)) || item;
+      setLabelModalProduct(updatedProduct);
+      setIsLabelModalOpen(true);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Gagal membuat barcode internal';
+      alert(msg);
+    }
+  };
+
   const handleAddCategorySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCategoryName.trim() || !currentUser) return;
@@ -182,6 +232,16 @@ export const ProductCatalogView: React.FC = () => {
               >
                 <UploadCloud className="size-3.5 text-muted-foreground" />
                 <span>Impor Excel / CSV</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleOpenLabelModal()}
+                className="h-9 px-3 rounded-pill bg-background border border-input text-xs font-semibold text-foreground hover:bg-muted transition-colors shadow-xs flex items-center gap-1.5"
+                title="Cetak Label Barcode Rak atau Kemasan Produk"
+              >
+                <Printer className="size-3.5 text-muted-foreground" />
+                <span>Cetak Label</span>
               </button>
 
               <button
@@ -356,10 +416,16 @@ export const ProductCatalogView: React.FC = () => {
                             {item.barcodes.length > 0 ? (
                               item.barcodes.map((bc) => {
                                 const matchedUnit = item.units.find((u) => u.id === bc.product_unit_id);
+                                const isInt = isInternalBarcode(bc.barcode);
                                 return (
                                   <span key={bc.id} className="flex items-center gap-1 font-mono bg-muted/80 px-1.5 py-0.5 rounded text-foreground">
                                     <Barcode className="size-3 text-muted-foreground" />
-                                    {bc.barcode}
+                                    <span>{bc.barcode}</span>
+                                    {isInt && (
+                                      <span className="text-[9px] bg-primary/10 text-primary px-1 py-0.2 rounded font-semibold uppercase font-sans">
+                                        Int
+                                      </span>
+                                    )}
                                     {matchedUnit && item.units.length > 1 && (
                                       <span className="text-[10px] text-muted-foreground font-sans font-medium">({matchedUnit.name})</span>
                                     )}
@@ -367,7 +433,18 @@ export const ProductCatalogView: React.FC = () => {
                                 );
                               })
                             ) : (
-                              <span className="text-muted-foreground italic">Tanpa barcode</span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-muted-foreground italic">Tanpa barcode</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCreateInternalBarcode(item)}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-pill text-[10px] font-semibold bg-primary/15 text-primary hover:bg-primary/25 transition shadow-xs"
+                                  title="Buat barcode internal otomatis untuk barang ini"
+                                >
+                                  <Sparkles className="size-2.5" />
+                                  <span>+ Barcode</span>
+                                </button>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -469,6 +546,14 @@ export const ProductCatalogView: React.FC = () => {
                             </button>
                           ) : (
                             <>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenLabelModal(item)}
+                                className="size-8 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                                title="Cetak Label Barcode"
+                              >
+                                <Printer className="size-3.5" />
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => handleEdit(item)}
@@ -634,6 +719,18 @@ export const ProductCatalogView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* ======================================================== */}
+      {/* MODAL: Cetak Label Barcode Rak / Produk (FR-CAT-11)      */}
+      {/* ======================================================== */}
+      <LabelPrintModal
+        isOpen={isLabelModalOpen}
+        onClose={() => setIsLabelModalOpen(false)}
+        products={products}
+        initialProduct={labelModalProduct}
+        storeName={storeName}
+        onBarcodeCreated={loadData}
+      />
     </div>
   );
 };

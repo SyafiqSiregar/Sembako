@@ -11,6 +11,19 @@ export type { Category };
 import { assertMoney } from '@/domain/money';
 import { assertQuantity, type BaseUnitKind } from '@/domain/quantity';
 import { type Clock, type IdGenerator, defaultClock, defaultIdGenerator } from '@/domain/time';
+import { authorize, type RoleCode } from '@/domain/permissions';
+import { buildInternalEan13, isInternalBarcode } from '@/domain/barcode/ean13';
+
+export interface AssignInternalBarcodeInput {
+  actor: {
+    id: string;
+    name?: string;
+    role?: RoleCode;
+    roles?: RoleCode[];
+  };
+  productId: string;
+  productUnitId: string;
+}
 
 export interface CreateProductUnitInput {
   unitCode: string;
@@ -570,5 +583,117 @@ export class CatalogService {
     }
 
     return details;
+  }
+
+  /**
+   * Membuat dan mengaitkan barcode internal (EAN-13 awalan 20) secara atomik (FR-CAT-11, BL-01..BL-06).
+   * Memeriksa otorisasi 'catalog.manage', memastikan keunikan sequence, dan mencatat audit log.
+   */
+  async assignInternalBarcode(params: AssignInternalBarcodeInput): Promise<{ barcode: string }> {
+    // 1. Otorisasi sebelum membuka transaksi
+    const roles = params.actor.roles && params.actor.roles.length > 0
+      ? params.actor.roles
+      : params.actor.role
+      ? [params.actor.role]
+      : [];
+    authorize(roles, 'catalog.manage', params.actor.name || params.actor.id);
+
+    const now = this.clock.now();
+    let assignedBarcode = '';
+
+    await this.db.transaction(
+      'rw',
+      [
+        this.db.products,
+        this.db.product_units,
+        this.db.product_barcodes,
+        this.db.counters,
+        this.db.audit_logs,
+      ],
+      async () => {
+        // 2. Validasi produk & satuan
+        const product = await this.db.products.get(params.productId);
+        if (!product || product.active === 0) {
+          throw new Error('Produk tidak ditemukan atau sudah dinonaktifkan');
+        }
+
+        const unit = await this.db.product_units.get(params.productUnitId);
+        if (!unit || unit.product_id !== params.productId || unit.active === 0) {
+          throw new Error('Satuan produk tidak valid atau sudah dinonaktifkan');
+        }
+
+        // 3. Pastikan satuan belum memiliki barcode internal (awalan 20-29)
+        const existingBarcodes = await this.db.product_barcodes
+          .where('product_unit_id')
+          .equals(params.productUnitId)
+          .toArray();
+
+        const hasInternal = existingBarcodes.some((b) => isInternalBarcode(b.barcode));
+        if (hasInternal) {
+          throw new Error('Satuan ini sudah memiliki barcode internal');
+        }
+
+        // 4. Baca sequence counter internal_barcode_seq (default: 0)
+        const counterRecord = await this.db.counters.get('internal_barcode_seq');
+        let currentSeq = counterRecord ? counterRecord.value : 0;
+
+        // 5. Cari sequence berikutnya yang unik (maksimal 50 percobaan)
+        let candidate = '';
+        let attempts = 0;
+        while (attempts < 50) {
+          attempts++;
+          currentSeq++;
+          const testCode = buildInternalEan13(currentSeq);
+          const duplicate = await this.db.product_barcodes.where('barcode').equals(testCode).first();
+          if (!duplicate) {
+            candidate = testCode;
+            break;
+          }
+        }
+
+        if (!candidate) {
+          throw new Error('Gagal menghasilkan barcode internal yang unik setelah 50 percobaan');
+        }
+
+        // 6. Simpan counter teranyar
+        await this.db.counters.put({
+          key: 'internal_barcode_seq',
+          value: currentSeq,
+        });
+
+        // 7. Simpan baris barcode baru
+        const barcodeId = this.idGen.generateId();
+        await this.db.product_barcodes.add({
+          id: barcodeId,
+          product_id: params.productId,
+          product_unit_id: params.productUnitId,
+          barcode: candidate,
+          created_at: now,
+        });
+
+        // 8. Catat audit log dalam transaksi yang sama
+        await this.db.audit_logs.add({
+          id: this.idGen.generateId(),
+          occurred_at: now,
+          user_id: params.actor.id,
+          device_id: 'TABLET1',
+          action: 'catalog.barcode_internal_create',
+          entity_type: 'product_barcodes',
+          entity_id: barcodeId,
+          after_json: JSON.stringify({
+            productId: params.productId,
+            productName: product.name,
+            productUnitId: params.productUnitId,
+            unitCode: unit.unit_code,
+            barcode: candidate,
+          }),
+          reason: `Pembuatan barcode internal untuk ${product.name} (${unit.name})`,
+        });
+
+        assignedBarcode = candidate;
+      }
+    );
+
+    return { barcode: assignedBarcode };
   }
 }

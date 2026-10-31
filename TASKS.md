@@ -180,12 +180,20 @@ Urutan: Opsi 3 (struk) → Opsi 2 (auto-lock) → Opsi 1 (barcode & label) → O
 
 ### Opsi 3 — Struk & Printer Thermal (kode & tes selesai; menunggu uji perangkat)
 
-- [~] **T6.01 Utilitas cetak terisolasi** — `src/lib/print.ts` (iframe tersembunyi), `src/lib/html.ts` (`escapeHtml` bersama).
-- [~] **T6.02 Pengaturan struk** — `StoreSettings.defaultPaperWidth` (`58mm`/`80mm`, bawaan 58mm) dan `showReturnPolicyOnReceipt` (bawaan aktif); validasi lebar kertas di `SettingsService`.
-- [~] **T6.03 Generator struk monospace** — `src/services/receipt.service.ts` (32 kolom/58mm, 48 kolom/80mm, penanda SALINAN saat cetak ulang, struk uji tanpa data rekaan). Tes: `tests/unit/services/receipt.test.ts` (11), `tests/integration/services/receipt-print.test.ts` (5).
-- [~] **T6.04 Redesain `ReceiptModal` + sambungan Pengaturan + cetak ulang riwayat** — identitas & footer struk kini dari Pengaturan; token desain; cetak ulang lewat `sale.reprint`.
-- [~] **T6.05 Bagian "Struk & Printer" di Pengaturan** — pilihan kertas bawaan, sakelar batas retur, tombol Cetak Struk Uji.
+- [x] **T6.01 Utilitas cetak terisolasi** — `src/lib/print.ts` (iframe tersembunyi), `src/lib/html.ts` (`escapeHtml` bersama).
+- [x] **T6.02 Pengaturan struk** — `StoreSettings.defaultPaperWidth` (`58mm`/`80mm`, bawaan 58mm) dan `showReturnPolicyOnReceipt` (bawaan aktif); validasi lebar kertas di `SettingsService`.
+- [x] **T6.03 Generator struk monospace** — `src/services/receipt.service.ts` (32 kolom/58mm, 48 kolom/80mm, penanda SALINAN saat cetak ulang, struk uji tanpa data rekaan). Tes: `tests/unit/services/receipt.test.ts` (11), `tests/integration/services/receipt-print.test.ts` (5).
+- [x] **T6.04 Redesain `ReceiptModal` + sambungan Pengaturan + cetak ulang riwayat** — identitas & footer struk kini dari Pengaturan; token desain; cetak ulang lewat `sale.reprint`.
+- [x] **T6.05 Bagian "Struk & Printer" di Pengaturan** — pilihan kertas bawaan, sakelar batas retur, tombol Cetak Struk Uji.
 - Belum teruji di perangkat: RC-M01–M04 (printer thermal 58/80 mm, Bluetooth/USB, tablet Android).
+
+### Opsi 1 — Barcode Internal Toko (EAN-13) & Cetak Label Rak/Produk (FR-CAT-11)
+
+- [x] **T6.09 Checksum EAN-13, encoder bit modul, & pure SVG renderer** — `src/domain/barcode/ean13.ts` (awalan GS1 internal 20, modul 95-bit standar, guard bars panjang, teks human-readable, pure SVG tanpa pustaka luar). Tes: `tests/unit/domain/ean13.test.ts` (12 tes: BC-U01..BC-U12 termasuk property-based tests).
+- [x] **T6.10 Generator barcode internal atomik & idempoten** — `CatalogService.assignInternalBarcode` di `src/services/catalog.service.ts` (sequence counter `internal_barcode_seq`, append-only audit log, verifikasi otorisasi `catalog.manage`, proteksi tabrakan). Tes: `tests/integration/catalog/internal-barcode.test.ts` (7 tes: BC-I01..BC-I08).
+- [x] **T6.11 Tombol & integrasi barcode internal pada UI Katalog** — `ProductCatalogView.tsx` (tombol "+ Barcode", badge label per baris produk, integrasi modal cetak) dan `ProductFormModal.tsx` (tombol "Buat Barcode Internal" dengan indikator loading dan proteksi produk belum disimpan).
+- [x] **T6.12 Generator lembar label stiker & Modal Cetak Label Interaktif** — `src/services/label.service.ts` (preset thermal 50×30 mm, 40×30 mm, HVS A4 3×8 70×37 mm; `@page` CSS; SVG barcode tajam `crispEdges`; proteksi harga dinamis BL-08) dan `src/features/catalog/LabelPrintModal.tsx` (pencarian produk, stepper kuantitas lembar, pemilihan ukuran kertas, pratinjau live SVG, dialog peringatan skala 100%, cetak via `printHtmlDocument`). Tes: `tests/unit/services/label.test.ts` (6 tes: LB-U01..LB-U06).
+- Belum teruji di perangkat: printer barcode stiker / label roll thermal Bluetooth/USB di tablet Android.
 - Belum bisa dijalankan: `pnpm lint` (ESLint tidak terpasang & tanpa konfigurasi di repo; lihat Pertanyaan Terbuka OQ-L07).
 
 ---
@@ -272,4 +280,11 @@ Urutan: Opsi 3 (struk) → Opsi 2 (auto-lock) → Opsi 1 (barcode & label) → O
     - Memperbaiki formula: `Math.round((currentStock * costPerUnit) / factor)`. Nilai stok 4 produk kini terhitung akurat sebesar **Rp 11.000.000**.
     - Memperbaiki tampilan tabel di tab Status & Nilai Stok dan dokumen ekspor Excel/PDF agar menyajikan kuantitas kemasan dan rincian satuan dasar (misal `100 Sak (500.000 g)`), biaya satuan dengan keterangan kemasan (`Rp 65.000 / Sak 5 kg`), serta batas stok minimum yang relevan (`5 Sak`).
     - 1 tes baru di `reports.test.ts`, total 113 tes lulus (100% green), `pnpm typecheck` bebas error, `pnpm build` sukses.
+  - **Opsi 1: Barcode Internal Toko (EAN-13) & Cetak Label Rak/Produk (`ean13.ts`, `label.service.ts`, `LabelPrintModal.tsx`, `ProductCatalogView.tsx`, `ProductFormModal.tsx`)**:
+    - **Domain Barcode EAN-13 Murni**: Checksum Modulo 10 GS1, parity map 95 modul, guard bars 101/01010/101, SVG renderer tajam `shape-rendering="crispEdges"`, zero third-party dependencies (`src/domain/barcode/ean13.ts`).
+    - **Layanan Pembuatan Barcode Atomik**: `CatalogService.assignInternalBarcode` dengan transaksi Dexie atomic, sequence counter `internal_barcode_seq`, append-only audit log, proteksi tabrakan sequence, otorisasi `catalog.manage`.
+    - **Generator Cetak Label Multi-Ukuran**: `LabelService.buildLabelSheetHtml` mendukung thermal 50×30 mm, 40×30 mm, dan HVS A4 3×8 (70×37 mm) dengan CSS `@page` khusus print, barcode SVG proporsional, serta sakelar opsional `showPrice` (bawaan nonaktif sesuai BL-08) dan `showStoreName`.
+    - **Antarmuka Modal Cetak Interaktif**: `LabelPrintModal.tsx` dengan pencarian barang cepat, pemilih ukuran kertas, stepper jumlah label, pratinjau live SVG realtime, dialog peringatan skala cetak 100%, dan cetak via iframe terisolasi (`printHtmlDocument`).
+    - **Integrasi UI Katalog**: Tombol "Cetak Label" di toolbar katalog produk, tombol "Cetak Label" & "+ Barcode" per baris barang yang belum berbarcode, dan tombol "Buat Barcode Internal" pada formulir produk `ProductFormModal.tsx`.
+    - **Pengujian Lengkap**: 25 tes baru (12 unit `ean13.test.ts`, 7 integrasi `internal-barcode.test.ts`, 6 unit `label.test.ts`). Total **138 tes lulus (100% green)**, `pnpm typecheck` 0 error, dan `pnpm build` sukses.
 
