@@ -111,4 +111,73 @@ describe('Service: AuthService & Lockout (FR-AUTH-01..03, AC-31)', () => {
     expect(resetUser?.failed_attempts).toBe(0);
     expect(resetUser?.locked_until).toBeUndefined();
   });
+
+  it('mengambil daftar pengguna aktif dan mengecualikan akun dinonaktifkan (FR-AUTH-01)', async () => {
+    await authService.createUser({
+      name: 'Kasir Syafiq',
+      pin: '123456',
+      roleCode: 'cashier',
+      createdBy: 'system',
+    });
+
+    await authService.createUser({
+      name: 'Budi (Owner)',
+      pin: '654321',
+      roleCode: 'owner',
+      createdBy: 'system',
+    });
+
+    const userDisabled = await authService.createUser({
+      name: 'Mantan Karyawan',
+      pin: '999999',
+      roleCode: 'stock_clerk',
+      createdBy: 'system',
+    });
+
+    // Nonaktifkan userDisabled
+    await db.users.update(userDisabled.id, { status: 'disabled' });
+
+    const activeUsers = await authService.listActiveUsers();
+    expect(activeUsers.length).toBe(2);
+
+    const names = activeUsers.map((u) => u.name);
+    expect(names).toContain('Kasir Syafiq');
+    expect(names).toContain('Budi (Owner)');
+    expect(names).not.toContain('Mantan Karyawan');
+
+    const syafiq = activeUsers.find((u) => u.name === 'Kasir Syafiq');
+    expect(syafiq?.roleCode).toBe('cashier');
+    expect(syafiq?.roleName).toBe('Kasir');
+
+    const budi = activeUsers.find((u) => u.name === 'Budi (Owner)');
+    expect(budi?.roleCode).toBe('owner');
+    expect(budi?.roleName).toBe('Pemilik Toko');
+  });
+
+  it('beralih akun/peran dari kasir ke owner dan memperbarui sesi otentikasi (FR-AUTH-01)', async () => {
+    const kasir = await authService.createUser({
+      name: 'Kasir Syafiq',
+      pin: '123456',
+      roleCode: 'cashier',
+      createdBy: 'system',
+    });
+
+    const owner = await authService.createUser({
+      name: 'Budi (Owner)',
+      pin: '654321',
+      roleCode: 'owner',
+      createdBy: 'system',
+    });
+
+    // 1. Syafiq login sebagai kasir
+    const sessionKasir = await authService.verifyLogin(kasir.id, '123456');
+    expect(sessionKasir.user.id).toBe(kasir.id);
+    expect(sessionKasir.roleCodes).toEqual(['cashier']);
+
+    // 2. Beralih login ke Owner Budi
+    const sessionOwner = await authService.verifyLogin(owner.id, '654321');
+    expect(sessionOwner.user.id).toBe(owner.id);
+    expect(sessionOwner.roleCodes).toEqual(['owner']);
+    expect(sessionOwner.user.name).toBe('Budi (Owner)');
+  });
 });

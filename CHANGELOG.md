@@ -4,6 +4,28 @@ Catatan seluruh perubahan, implementasi fitur, pembaruan skema, dan keputusan ar
 
 Format mengacu pada [Keep a Changelog](https://keepachangelog.com/id/1.0.0/).
 
+## [Fitur Ganti Pengguna & Beralih Peran pada Layar Kunci dan Header] - 2026-10-31
+
+**Implementasi Fitur Ganti Pengguna (Switch User/Role) Antara Kasir, Supervisor, Staf Gudang, dan Pemilik Toko (FR-AUTH-01, FR-AUTH-04, PRD §5.2):**
+- **Layar Kunci Dinamis (`src/features/auth/LockScreenModal.tsx`):**
+  - Menambahkan tombol "Ganti" pada kartu profil layar terkunci untuk beralih akun kapan saja.
+  - Tampilan pemilih akun interaktif (*User Picker*) yang menampilkan seluruh staf/pengguna aktif, nama lengkap, inisial avatar, status aktif, dan badge peran semantik (`Pemilik Toko`, `Supervisor`, `Kasir POS`, `Staf Gudang`).
+  - Pemilihan akun akan langsung memuat kartu profil pengguna tersebut dan meminta input PIN 6 digit untuk verifikasi dan login.
+  - Sesi kasir yang sedang berjalan tetap aman dan tidak terhapus (FR-AUTH-04, FR-AUTH-09).
+- **Aksi Cepat Ganti Pengguna di Header (`src/components/layout/AppLayout.tsx`):**
+  - Mengubah chip profil kasir di top header bar desktop/tablet menjadi tombol interaktif dengan ikon alih peran (`ArrowRightLeft`). Klik pada profil langsung mengunci layar dan membuka daftar pemilih pengguna.
+  - Menambahkan tombol "Ganti Pengguna & Peran" pada drawer navigasi mobile/tablet portrait.
+- **Layanan Autentikasi Pengguna Aktif (`src/services/auth.service.ts` & `src/features/auth/authStore.ts`):**
+  - Implementasi `authService.listActiveUsers()` yang mengambil seluruh akun berstatus `active` lengkap dengan nama peran dan kode perannya, serta memfilter akun berstatus `disabled`.
+  - Integrasi dengan `useAuthStore` untuk mendukung transisi pengguna dan opsi `lockScreen({ selectUser: true })`.
+- **Pengujian & Verifikasi:**
+  - Menambahkan 2 unit/integrasi test di `tests/integration/services/auth.test.ts`: pengujian daftar pengguna aktif serta pengujian transisi sesi dan matriks izin saat beralih peran dari Kasir ke Owner.
+  - `pnpm typecheck`: 0 errors.
+  - `pnpm test`: 31 files, 153 tests passed (100% green).
+  - `pnpm build`: Vite bundle production berhasil.
+
+---
+
 ## [Simulasi UAT 1 Hari Penuh, Pemeriksa 6 Invarian Database & Checklist Lapangan (Fase 6, Pilihan B)] - 2026-10-31
 
 **Implementasi Simulasi UAT End-to-End, Invariant Verifier, dan Panduan Checklist Fisik (PRD §8, DATABASE.md §5, rencana_lanjutan.md Opsi 4):**

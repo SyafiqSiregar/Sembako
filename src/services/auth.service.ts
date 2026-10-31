@@ -19,6 +19,13 @@ export interface UserSessionData {
   roleCodes: RoleCode[];
 }
 
+export interface ActiveUserOption {
+  id: string;
+  name: string;
+  roleCode: RoleCode;
+  roleName: string;
+}
+
 export class AuthService {
   constructor(
     private db: SembakoDatabase,
@@ -166,5 +173,33 @@ export class AuthService {
     });
 
     return this.getUserSessionData(userId);
+  }
+
+  /**
+   * Mengambil daftar semua pengguna berstatus aktif beserta perannya untuk fitur ganti pengguna (FR-AUTH-01).
+   */
+  async listActiveUsers(): Promise<ActiveUserOption[]> {
+    const users = await this.db.users.where('status').equals('active').toArray();
+    const roles = await this.db.roles.toArray();
+    const roleMap = new Map(roles.map((r) => [r.id, r]));
+
+    const userRoles = await this.db.user_roles.toArray();
+    const userRoleMap = new Map<string, Role>();
+    for (const ur of userRoles) {
+      const r = roleMap.get(ur.role_id);
+      if (r) {
+        userRoleMap.set(ur.user_id, r);
+      }
+    }
+
+    return users.map((u) => {
+      const r = userRoleMap.get(u.id);
+      return {
+        id: u.id,
+        name: u.name,
+        roleCode: (r?.code as RoleCode) || 'cashier',
+        roleName: r?.name || 'Kasir',
+      };
+    });
   }
 }

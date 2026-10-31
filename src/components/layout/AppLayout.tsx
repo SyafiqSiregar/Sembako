@@ -18,6 +18,7 @@ import {
   X,
   PanelLeftClose,
   PanelLeft,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { SyncStatusChip } from '../shared/SyncStatusChip';
 import { NotificationCenterPopover } from './NotificationCenterPopover';
@@ -297,6 +298,17 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                   </div>
                   <SyncStatusChip status="saved_local" />
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMobileDrawerOpen(false);
+                    lockScreen({ selectUser: true });
+                  }}
+                  className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-pill bg-muted/60 hover:bg-muted text-xs font-semibold text-foreground border border-input transition-colors"
+                >
+                  <ArrowRightLeft className="size-3.5 text-primary" />
+                  <span>Ganti Pengguna & Peran</span>
+                </button>
               </div>
 
               {/* Navigasi Utama */}
@@ -442,23 +454,29 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
             {/* Profil Kasir (>= sm) & Tombol Kunci Layar */}
             <div className="flex items-center gap-1.5 sm:gap-2 sm:pl-2 sm:border-l sm:border-border shrink-0">
-              <div className="hidden sm:flex items-center gap-2 bg-card border border-input px-2.5 py-1.5 rounded-pill shadow-sm">
+              <button
+                type="button"
+                onClick={() => lockScreen({ selectUser: true })}
+                className="hidden sm:flex items-center gap-2 bg-card hover:bg-muted/70 active:scale-[0.98] border border-input px-2.5 py-1.5 rounded-pill shadow-xs transition-all cursor-pointer group"
+                title="Ganti Pengguna atau Beralih Peran"
+              >
                 <div className="size-6 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold shrink-0">
                   {currentUser ? currentUser.name.charAt(0) : 'U'}
                 </div>
                 <div className="hidden md:flex flex-col text-left">
-                  <span className="text-xs font-semibold text-foreground leading-none truncate max-w-[100px]">
+                  <span className="text-xs font-semibold text-foreground leading-none truncate max-w-[100px] group-hover:text-primary transition-colors">
                     {currentUser ? currentUser.name : 'Kasir'}
                   </span>
                   <span className="text-[10px] text-muted-foreground leading-none mt-0.5">
                     {roleName}
                   </span>
                 </div>
-              </div>
+                <ArrowRightLeft className="size-3 text-muted-foreground group-hover:text-primary transition-colors ml-0.5 shrink-0" />
+              </button>
 
               <button
                 type="button"
-                onClick={lockScreen}
+                onClick={() => lockScreen()}
                 className="size-9 rounded-full bg-card border border-input flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted active:scale-95 transition-all shadow-sm shrink-0 focus:outline-none focus:ring-2 focus:ring-ring"
                 title="Kunci Layar (PIN)"
                 aria-label="Kunci layar kasir"

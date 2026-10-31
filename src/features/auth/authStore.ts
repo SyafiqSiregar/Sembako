@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { db, type User, type Role, type CashierSession } from '@/data/db';
-import { AuthService } from '@/services/auth.service';
+import { AuthService, type ActiveUserOption } from '@/services/auth.service';
 import { CashierSessionService } from '@/services/session.service';
 import { type RoleCode } from '@/domain/permissions';
 
@@ -9,15 +9,17 @@ interface AuthState {
   roles: Role[];
   roleCodes: RoleCode[];
   isLocked: boolean;
+  startInUserSelect: boolean;
   activeSession: CashierSession | null;
   isLoading: boolean;
   error: string | null;
 
   // Actions
   initialize: () => Promise<void>;
+  listActiveUsers: () => Promise<ActiveUserOption[]>;
   login: (userId: string, pin: string) => Promise<boolean>;
   logout: () => void;
-  lockScreen: () => void;
+  lockScreen: (options?: { selectUser?: boolean }) => void;
   unlockScreen: (pin: string) => Promise<boolean>;
   openSession: (openingCash: number) => Promise<void>;
   closeSession: (closingCash: number, notes?: string) => Promise<{ discrepancy: number; expectedCash: number }>;
@@ -33,6 +35,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   roles: [],
   roleCodes: [],
   isLocked: false,
+  startInUserSelect: false,
   activeSession: null,
   isLoading: false,
   error: null,
@@ -92,17 +95,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  listActiveUsers: async () => {
+    return authService.listActiveUsers();
+  },
+
   logout: () => {
     set({
       currentUser: null,
       roles: [],
       roleCodes: [],
       isLocked: false,
+      startInUserSelect: false,
     });
   },
 
-  lockScreen: () => {
-    set({ isLocked: true, error: null });
+  lockScreen: (options?: { selectUser?: boolean }) => {
+    set({ isLocked: true, startInUserSelect: !!options?.selectUser, error: null });
   },
 
   unlockScreen: async (pin: string) => {
