@@ -21,6 +21,7 @@ interface AuthState {
   unlockScreen: (pin: string) => Promise<boolean>;
   openSession: (openingCash: number) => Promise<void>;
   closeSession: (closingCash: number, notes?: string) => Promise<{ discrepancy: number; expectedCash: number }>;
+  getExpectedCash: (sessionId: string) => Promise<number>;
   clearError: () => void;
 }
 
@@ -160,6 +161,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ error: err.message, isLoading: false });
       throw err;
     }
+  },
+
+  getExpectedCash: async (sessionId: string) => {
+    return sessionService.calculateExpectedCash(sessionId);
   },
 
   clearError: () => set({ error: null }),

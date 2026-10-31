@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuthStore } from './authStore';
 import { formatRupiah, parseRupiah } from '@/domain/money';
 import { DollarSign, AlertTriangle, X } from 'lucide-react';
@@ -14,15 +14,43 @@ export const CashierSessionModal: React.FC<CashierSessionModalProps> = ({
   onClose,
   mode,
 }) => {
-  const { activeSession, openSession, closeSession, error, clearError } = useAuthStore();
+  const { activeSession, openSession, closeSession, getExpectedCash, error, clearError } = useAuthStore();
   const [amountText, setAmountText] = useState('');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [expectedCash, setExpectedCash] = useState<number | null>(null);
+  const [isLoadingExpected, setIsLoadingExpected] = useState(false);
+
+  // Ambil expected cash dari sistem saat modal tutup kasir terbuka
+  useEffect(() => {
+    if (isOpen && mode === 'close' && activeSession) {
+      setLocalError(null);
+      setIsLoadingExpected(true);
+      getExpectedCash(activeSession.id)
+        .then((val) => {
+          setExpectedCash(val);
+        })
+        .catch((err) => {
+          console.error(err);
+        })
+        .finally(() => {
+          setIsLoadingExpected(false);
+        });
+    } else {
+      setExpectedCash(null);
+      setAmountText('');
+      setNotes('');
+      setLocalError(null);
+    }
+  }, [isOpen, mode, activeSession, getExpectedCash]);
 
   if (!isOpen) return null;
 
   const currentAmount = parseRupiah(amountText);
+  const discrepancy = expectedCash !== null && amountText.trim() !== '' ? currentAmount - expectedCash : null;
+  const hasDiscrepancy = discrepancy !== null && discrepancy !== 0;
+  const needsNotes = hasDiscrepancy && !notes.trim();
 
   // Quick preset buttons untuk modal awal
   const quickPresets = [0, 50000, 100000, 200000, 300000, 500000];
@@ -46,6 +74,14 @@ export const CashierSessionModal: React.FC<CashierSessionModalProps> = ({
     e.preventDefault();
     clearError();
     setLocalError(null);
+
+    if (hasDiscrepancy && !notes.trim()) {
+      setLocalError(
+        `Terdapat selisih kas sebesar ${formatRupiah(discrepancy!)}. Catatan penutupan kas wajib diisi.`
+      );
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await closeSession(currentAmount, notes);
@@ -56,6 +92,9 @@ export const CashierSessionModal: React.FC<CashierSessionModalProps> = ({
       setIsSubmitting(false);
     }
   };
+
+  const systemCashSales =
+    expectedCash !== null && activeSession ? Math.max(0, expectedCash - activeSession.opening_cash) : 0;
 
   return (
     <div
@@ -78,7 +117,7 @@ export const CashierSessionModal: React.FC<CashierSessionModalProps> = ({
               <span className="text-xs text-muted-foreground">
                 {mode === 'open'
                   ? 'Masukkan saldo modal awal di laci kas'
-                  : 'Hitung kas fisik aktual di laci'}
+                  : 'Hitung kas fisik aktual di laci (Rekonsiliasi Kas)'}
               </span>
             </div>
           </div>
@@ -155,18 +194,55 @@ export const CashierSessionModal: React.FC<CashierSessionModalProps> = ({
           </form>
         ) : (
           <form onSubmit={handleCloseSubmit} className="flex flex-col gap-4">
+            {/* Rincian Target Kas Sistem (PRD §8.6 butir 4, BR-22) */}
             {activeSession && (
-              <div className="bg-muted/60 p-3 rounded-card text-xs flex justify-between items-center">
-                <span className="text-muted-foreground">Modal Awal Sesi:</span>
-                <span className="font-semibold text-foreground tabular-nums">
-                  {formatRupiah(activeSession.opening_cash)}
-                </span>
+              <div className="bg-muted/50 p-3.5 rounded-card text-xs flex flex-col gap-2 border border-border">
+                <div className="flex justify-between items-center text-muted-foreground">
+                  <span>Modal Awal Sesi:</span>
+                  <span className="font-semibold text-foreground tabular-nums">
+                    {formatRupiah(activeSession.opening_cash)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-muted-foreground">
+                  <span>Penjualan Tunai di Laci:</span>
+                  <span className="font-semibold text-foreground tabular-nums">
+                    {isLoadingExpected ? 'Menghitung...' : formatRupiah(systemCashSales)}
+                  </span>
+                </div>
+                <div className="pt-2 border-t border-border flex justify-between items-center">
+                  <span className="font-bold text-foreground">Target Kas di Laci:</span>
+                  <span className="font-extrabold text-sm text-primary tabular-nums">
+                    {isLoadingExpected ? 'Menghitung...' : formatRupiah(expectedCash ?? activeSession.opening_cash)}
+                  </span>
+                </div>
+                {expectedCash !== null && (
+                  <button
+                    type="button"
+                    onClick={() => setAmountText(expectedCash.toString())}
+                    className="mt-1 py-1 px-2.5 bg-primary/10 hover:bg-primary/20 text-primary text-[11px] font-semibold rounded-pill transition-colors text-center w-full border border-primary/25"
+                  >
+                    Salin Target Kas ke Input ({formatRupiah(expectedCash)})
+                  </button>
+                )}
               </div>
             )}
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="closingCash" className="text-xs font-semibold text-foreground">
-                Total Uang Tunai Fisik di Laci (Rp)
+              <label htmlFor="closingCash" className="text-xs font-semibold text-foreground flex justify-between items-center">
+                <span>Total Uang Tunai Fisik di Laci (Rp)</span>
+                {discrepancy !== null && (
+                  <span
+                    className={`text-[11px] font-bold ${
+                      discrepancy === 0 ? 'text-primary' : 'text-destructive-text'
+                    }`}
+                  >
+                    {discrepancy === 0
+                      ? '✓ Kas Klop (Selisih Rp 0)'
+                      : discrepancy < 0
+                      ? `Kurang ${formatRupiah(Math.abs(discrepancy))}`
+                      : `Lebih ${formatRupiah(discrepancy)}`}
+                  </span>
+                )}
               </label>
               <div className="relative">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-semibold text-muted-foreground">
@@ -178,7 +254,7 @@ export const CashierSessionModal: React.FC<CashierSessionModalProps> = ({
                   inputMode="numeric"
                   value={amountText}
                   onChange={(e) => setAmountText(e.target.value)}
-                  placeholder="0"
+                  placeholder={expectedCash !== null ? expectedCash.toString() : '0'}
                   className="w-full h-12 pl-10 pr-4 bg-card border border-input rounded-card text-lg font-bold text-foreground tabular-nums text-right focus:outline-none focus:ring-2 focus:ring-ring"
                   autoFocus
                 />
@@ -186,16 +262,30 @@ export const CashierSessionModal: React.FC<CashierSessionModalProps> = ({
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="notes" className="text-xs font-semibold text-foreground">
-                Catatan Penutupan Kas (Wajib jika ada selisih)
+              <label
+                htmlFor="notes"
+                className={`text-xs font-semibold flex items-center justify-between ${
+                  needsNotes ? 'text-destructive-text' : 'text-foreground'
+                }`}
+              >
+                <span>Catatan Penutupan Kas {hasDiscrepancy ? '(Wajib Diisi)' : '(Opsional)'}</span>
+                {needsNotes && <span className="text-[10px] font-normal">Wajib diisi karena ada selisih</span>}
               </label>
               <textarea
                 id="notes"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Tuliskan keterangan jika ada kelebihan / kekurangan uang fisik..."
+                placeholder={
+                  hasDiscrepancy
+                    ? 'Wajib tuliskan alasan selisih uang fisik (misal: selisih kembalian, beli kantong kresek)...'
+                    : 'Catatan tambahan penutupan kasir (opsional)...'
+                }
                 rows={2}
-                className="w-full p-2.5 bg-card border border-input rounded-card text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className={`w-full p-2.5 bg-card border rounded-card text-xs text-foreground focus:outline-none focus:ring-2 ${
+                  needsNotes
+                    ? 'border-destructive/60 focus:ring-destructive'
+                    : 'border-input focus:ring-ring'
+                }`}
               />
             </div>
 
