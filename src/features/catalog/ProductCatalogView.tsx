@@ -7,6 +7,7 @@ import { useAuthStore } from '@/features/auth/authStore';
 import { ProductFormModal } from './ProductFormModal';
 import { CsvImportModal } from './CsvImportModal';
 import { LabelPrintModal } from './LabelPrintModal';
+import { DuplicateAssistantModal } from './DuplicateAssistantModal';
 import { isInternalBarcode } from '@/domain/barcode/ean13';
 import { SettingsService } from '@/services/settings.service';
 import {
@@ -651,74 +652,15 @@ export const ProductCatalogView: React.FC = () => {
         </div>
       )}
       {/* ======================================================== */}
-      {/* MODAL: Panduan Gabung / Koreksi Produk Duplikat (GAP-07)  */}
+      {/* MODAL: Asisten Deteksi & Penggabungan Produk Duplikat    */}
       {/* ======================================================== */}
-      {isDuplicateGuideOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col">
-            <div className="bg-[#14463C] text-white p-5 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <HelpCircle className="w-5 h-5 text-emerald-300" />
-                <h3 className="font-serif font-bold text-base">Panduan Barang Duplikat</h3>
-              </div>
-              <button
-                onClick={() => setIsDuplicateGuideOpen(false)}
-                className="text-white/70 hover:text-white p-1 rounded-lg"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="p-6 overflow-y-auto space-y-4 text-xs text-stone-700 bg-[#FBF8F3]">
-              <p className="text-stone-600 leading-relaxed">
-                Jika kasir atau staf secara tidak sengaja membuat 2 produk berbeda untuk barang yang sama (misal <em>&ldquo;Indomie Goreng&rdquo;</em> dan <em>&ldquo;Indomie goreng eceran&rdquo;</em>), ikuti 3 langkah aman ini:
-              </p>
-
-              <div className="space-y-3">
-                <div className="p-3 bg-white rounded-xl border border-stone-200">
-                  <div className="font-bold text-stone-900 flex items-center gap-1.5 mb-1">
-                    <span className="size-5 rounded-full bg-[#14463C] text-white flex items-center justify-center text-[10px]">1</span>
-                    Pindahkan Sisa Stok
-                  </div>
-                  <p className="text-stone-600">
-                    Buka menu <strong>Inventaris → Sesuaikan Stok</strong>. Pilih produk yang keliru, kurangi stoknya menjadi 0 dengan alasan <em>&ldquo;Koreksi Produk Duplikat&rdquo;</em>. Kemudian tambahkan stok tersebut ke produk yang benar.
-                  </p>
-                </div>
-
-                <div className="p-3 bg-white rounded-xl border border-stone-200">
-                  <div className="font-bold text-stone-900 flex items-center gap-1.5 mb-1">
-                    <span className="size-5 rounded-full bg-[#14463C] text-white flex items-center justify-center text-[10px]">2</span>
-                    Arsipkan Barang yang Keliru
-                  </div>
-                  <p className="text-stone-600">
-                    Di tabel Katalog Produk ini, cari barang yang keliru lalu klik tombol <strong>Arsipkan</strong>. Barang tidak akan muncul lagi di kasir POS maupun daftar aktif.
-                  </p>
-                </div>
-
-                <div className="p-3 bg-white rounded-xl border border-stone-200">
-                  <div className="font-bold text-emerald-800 flex items-center gap-1.5 mb-1">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    Data Riwayat Struk Tetap 100% Aman
-                  </div>
-                  <p className="text-stone-600">
-                    Struk penjualan lama yang pernah mencatat produk tersebut tidak akan berubah atau rusak, karena sistem menyimpan salinan permanen (snapshot).
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-4 bg-white border-t border-stone-200 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setIsDuplicateGuideOpen(false)}
-                className="px-5 py-2.5 bg-[#14463C] text-white rounded-xl text-xs font-bold hover:bg-[#0F352E] transition-colors"
-              >
-                Saya Mengerti
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DuplicateAssistantModal
+        isOpen={isDuplicateGuideOpen}
+        onClose={() => setIsDuplicateGuideOpen(false)}
+        catalogService={catalogService}
+        currentUserId={currentUser?.id || 'admin'}
+        onMergeCompleted={loadData}
+      />
 
       {/* ======================================================== */}
       {/* MODAL: Cetak Label Barcode Rak / Produk (FR-CAT-11)      */}

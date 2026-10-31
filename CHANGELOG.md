@@ -4,6 +4,34 @@ Catatan seluruh perubahan, implementasi fitur, pembaruan skema, dan keputusan ar
 
 Format mengacu pada [Keep a Changelog](https://keepachangelog.com/id/1.0.0/).
 
+## [Sistem Auto-Deteksi & Asisten Penggabungan Produk Duplikat] - 2026-10-31
+
+**Implementasi Sistem Cerdas Auto-Deteksi, Pencegahan Dini, dan Asisten Penggabungan Produk Duplikat (FR-CAT-01, AC-39, BR-18):**
+- **Domain Normalisasi & Skoring Kemiripan (`src/domain/catalog/duplicate-detector.ts`):**
+  - Normalisasi teks dan pemetaan singkatan satuan sembako (`kg`, `gr`, `ltr`, `bks`, `dus`, `pcs`).
+  - Algoritma *Token Dice Coefficient* untuk skoring kemiripan kata tanpa dependensi pihak ketiga.
+  - Deteksi tabrakan barcode fisik (100%), kemiripan nama ($\ge$ 80%), dan varian eceran vs dus.
+- **Transaksi Mutasi Stok Atomik & Pengarsipan (`src/services/catalog.service.ts`):**
+  - Method `scanDuplicates()` untuk memindai seluruh produk aktif beserta unit, barcode, stok fisik, dan riwayat struk penjualan.
+  - Method `mergeDuplicateProduct()` untuk memindahkan sisa stok fisik ke produk utama via mutasi ledger `InventoryService` (`COUNT_ADJUSTMENT`), mengarsipkan produk keliru (`active: 0`), dan mencatat audit trail (AC-39, BR-18).
+- **Asisten Modal Interaktif (`src/features/catalog/DuplicateAssistantModal.tsx`):**
+  - Menggantikan modal teks statis lama dengan antarmuka asisten interaktif.
+  - Tampilan *Side-by-side Card Comparison* untuk membandingkan stok, harga, dan riwayat transaksi.
+  - Pemilihan produk utama yang dipertahankan vs produk yang akan digabung dan diarsipkan.
+  - Tombol aksi 1-klik `[Gabungkan Stok & Arsipkan]` dan `[Bukan Duplikat]`.
+- **Pencegahan Dini Real-Time (`src/features/catalog/ProductFormModal.tsx`):**
+  - Peringatan real-time saat mengetik nama produk jika terdeteksi produk aktif dengan nama mirip ($\ge$ 75%).
+  - Peringatan tabrakan barcode jika barcode sudah terdaftar pada produk aktif lain.
+- **Pengujian & Verifikasi:**
+  - 6 unit test di `tests/unit/domain/duplicate-detector.test.ts`.
+  - 1 integrasi test di `tests/integration/services/duplicate-merge.test.ts`.
+  - `pnpm typecheck`: 0 errors.
+  - `pnpm test`: 33 files, 160 tests passed (100% green).
+  - `pnpm db:check`: 6 Invarian database valid.
+  - `pnpm build`: Vite bundle production berhasil.
+
+---
+
 ## [Fitur Ganti Pengguna & Beralih Peran pada Layar Kunci dan Header] - 2026-10-31
 
 **Implementasi Fitur Ganti Pengguna (Switch User/Role) Antara Kasir, Supervisor, Staf Gudang, dan Pemilik Toko (FR-AUTH-01, FR-AUTH-04, PRD §5.2):**

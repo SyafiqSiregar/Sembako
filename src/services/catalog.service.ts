@@ -6,6 +6,12 @@ import {
   type Category,
   type PriceHistory,
 } from '@/data/db';
+import { InventoryService } from './inventory.service';
+import {
+  detectDuplicateCandidates,
+  type ProductCatalogItem,
+  type DuplicateGroup,
+} from '@/domain/catalog/duplicate-detector';
 
 export type { Category };
 import { assertMoney } from '@/domain/money';
@@ -78,11 +84,16 @@ export interface ProductDetail {
 }
 
 export class CatalogService {
+  private inventoryService: InventoryService;
+
   constructor(
     private db: SembakoDatabase,
     private clock: Clock = defaultClock,
-    private idGen: IdGenerator = defaultIdGenerator
-  ) {}
+    private idGen: IdGenerator = defaultIdGenerator,
+    inventoryService?: InventoryService
+  ) {
+    this.inventoryService = inventoryService || new InventoryService(db, clock, idGen);
+  }
 
   // ----------------------------------------------------
   // KATEGORI
@@ -695,5 +706,170 @@ export class CatalogService {
     );
 
     return { barcode: assignedBarcode };
+  }
+
+  /**
+   * Pindai katalog produk aktif untuk menemukan potensi duplikat (FR-CAT-01).
+   */
+  async scanDuplicates(ignoredPairIds: Set<string> = new Set()): Promise<DuplicateGroup[]> {
+    const products = await this.db.products.where('active').equals(1).toArray();
+    const categories = await this.db.categories.toArray();
+    const catMap = new Map(categories.map((c) => [c.id, c.name]));
+
+    const allUnits = await this.db.product_units.toArray();
+    const unitsByProd = new Map<string, typeof allUnits>();
+    for (const u of allUnits) {
+      const list = unitsByProd.get(u.product_id) || [];
+      list.push(u);
+      unitsByProd.set(u.product_id, list);
+    }
+
+    const allBarcodes = await this.db.product_barcodes.toArray();
+    const barcodesByProd = new Map<string, string[]>();
+    for (const b of allBarcodes) {
+      const list = barcodesByProd.get(b.product_id) || [];
+      list.push(b.barcode);
+      barcodesByProd.set(b.product_id, list);
+    }
+
+    const allBalances = await this.db.inventory_balances.toArray();
+    const stockByProd = new Map<string, number>();
+    for (const bal of allBalances) {
+      stockByProd.set(bal.product_id, (stockByProd.get(bal.product_id) || 0) + bal.qty_base);
+    }
+
+    // Ambil histori struk per produk
+    const allSaleItems = await this.db.sale_items.toArray();
+    const txCountByProd = new Map<string, number>();
+    for (const item of allSaleItems) {
+      txCountByProd.set(item.product_id, (txCountByProd.get(item.product_id) || 0) + 1);
+    }
+
+    const catalogItems: ProductCatalogItem[] = products.map((p) => {
+      const pUnits = unitsByProd.get(p.id) || [];
+      const baseUnit = pUnits.find((u) => u.is_base === 1) || pUnits[0];
+
+      return {
+        id: p.id,
+        name: p.name,
+        category_id: p.category_id,
+        category_name: catMap.get(p.category_id) || 'Tanpa Kategori',
+        base_unit_name: baseUnit?.name || 'Pcs',
+        base_unit_code: baseUnit?.unit_code || 'pcs',
+        barcodes: barcodesByProd.get(p.id) || [],
+        stock: stockByProd.get(p.id) || 0,
+        price: baseUnit?.price || 0,
+        cost: baseUnit?.cost_x10k ? Math.round(baseUnit.cost_x10k / 10000) : 0,
+        tx_count: txCountByProd.get(p.id) || 0,
+      };
+    });
+
+    return detectDuplicateCandidates(catalogItems, ignoredPairIds);
+  }
+
+  /**
+   * Gabungkan stok dari produk keliru ke produk utama dan arsipkan produk keliru (AC-39, BR-18).
+   */
+  async mergeDuplicateProduct(params: {
+    primaryProductId: string;
+    duplicateProductId: string;
+    actor: { id: string; role?: RoleCode; roles?: RoleCode[] };
+  }): Promise<{
+    transferredStock: number;
+    primaryName: string;
+    duplicateName: string;
+  }> {
+    const roles = params.actor.roles || (params.actor.role ? [params.actor.role] : []);
+    authorize(roles, 'catalog.manage', params.actor.id);
+
+    const primaryProduct = await this.db.products.get(params.primaryProductId);
+    if (!primaryProduct) throw new Error('Produk utama tidak ditemukan');
+
+    const duplicateProduct = await this.db.products.get(params.duplicateProductId);
+    if (!duplicateProduct) throw new Error('Produk duplikat tidak ditemukan');
+
+    if (params.primaryProductId === params.duplicateProductId) {
+      throw new Error('Produk utama dan produk duplikat tidak boleh sama');
+    }
+
+    // Ambil saldo stok produk duplikat
+    const balances = await this.db.inventory_balances
+      .where('product_id')
+      .equals(params.duplicateProductId)
+      .toArray();
+    const transferQty = balances.reduce((sum, b) => sum + b.qty_base, 0);
+
+    const dupUnits = await this.db.product_units
+      .where('product_id')
+      .equals(params.duplicateProductId)
+      .toArray();
+    const dupBaseUnit = dupUnits.find((u) => u.is_base === 1) || dupUnits[0];
+
+    const primUnits = await this.db.product_units
+      .where('product_id')
+      .equals(params.primaryProductId)
+      .toArray();
+    const primBaseUnit = primUnits.find((u) => u.is_base === 1) || primUnits[0];
+
+    const now = this.clock.now();
+
+    // 1. Pindahkan stok fisik jika > 0 via InventoryService (ledger resmi)
+    if (transferQty > 0) {
+      await this.inventoryService.recordMovement({
+        type: 'COUNT_ADJUSTMENT',
+        refType: 'adjustment',
+        userId: params.actor.id,
+        reason: `[MERGE_DUPLICATE] Pemindahan ${transferQty} stok fisik dari '${duplicateProduct.name}' ke '${primaryProduct.name}'`,
+        allowNegativeStock: false,
+        items: [
+          {
+            productId: params.duplicateProductId,
+            qtyDeltaBase: -transferQty,
+            unitCostX10k: dupBaseUnit?.cost_x10k || 0,
+          },
+          {
+            productId: params.primaryProductId,
+            qtyDeltaBase: transferQty,
+            unitCostX10k: primBaseUnit?.cost_x10k || 0,
+          },
+        ],
+      });
+    }
+
+    // 2. Arsipkan produk duplikat & catat audit log dalam transaksi Dexie
+    await this.db.transaction('rw', [this.db.products, this.db.audit_logs], async () => {
+      await this.db.products.update(params.duplicateProductId, {
+        active: 0,
+        updated_at: now,
+        updated_by: params.actor.id,
+      });
+
+      await this.db.audit_logs.add({
+        id: this.idGen.generateId(),
+        occurred_at: now,
+        user_id: params.actor.id,
+        device_id: 'TABLET1',
+        action: 'catalog.product_merge_duplicate',
+        entity_type: 'products',
+        entity_id: params.duplicateProductId,
+        before_json: JSON.stringify({
+          name: duplicateProduct.name,
+          active: duplicateProduct.active,
+          stock: transferQty,
+        }),
+        after_json: JSON.stringify({
+          active: 0,
+          merged_into: params.primaryProductId,
+          transferred_stock: transferQty,
+        }),
+        reason: `Penggabungan barang duplikat: memindahkan ${transferQty} stok ke '${primaryProduct.name}' dan mengarsipkan '${duplicateProduct.name}'`,
+      });
+    });
+
+    return {
+      transferredStock: transferQty,
+      primaryName: primaryProduct.name,
+      duplicateName: duplicateProduct.name,
+    };
   }
 }

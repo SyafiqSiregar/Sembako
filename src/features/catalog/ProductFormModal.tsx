@@ -4,6 +4,7 @@ import { CatalogService } from '@/services/catalog.service';
 import { db } from '@/data/db';
 import { parseRupiah, formatRupiah } from '@/domain/money';
 import { isInternalBarcode } from '@/domain/barcode/ean13';
+import { calculateDiceSimilarity } from '@/domain/catalog/duplicate-detector';
 import { useAuthStore } from '@/features/auth/authStore';
 import { X, AlertTriangle, Package, Check, Layers, Barcode as BarcodeIcon, Info, Calendar, Sparkles } from 'lucide-react';
 
@@ -66,8 +67,71 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [isGeneratingInternalBc, setIsGeneratingInternalBc] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Pencegahan Dini Duplikasi (Real-time Detection)
+  const [similarProductsWarning, setSimilarProductsWarning] = useState<{ id: string; name: string; score: number } | null>(null);
+  const [barcodeConflictWarning, setBarcodeConflictWarning] = useState<{ barcode: string; productName: string } | null>(null);
+
   const { currentUser, roleCodes } = useAuthStore();
   const catalogService = new CatalogService(db);
+
+  // Cek duplikasi nama secara real-time
+  useEffect(() => {
+    if (!name.trim() || name.trim().length < 3) {
+      setSimilarProductsWarning(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const activeProducts = await db.products.where('active').equals(1).toArray();
+        let highestMatch: { id: string; name: string; score: number } | null = null;
+
+        for (const p of activeProducts) {
+          if (editingProduct && p.id === editingProduct.product.id) continue;
+          const score = calculateDiceSimilarity(name, p.name);
+          if (score >= 0.75) {
+            if (!highestMatch || score > highestMatch.score / 100) {
+              highestMatch = { id: p.id, name: p.name, score: Math.round(score * 100) };
+            }
+          }
+        }
+
+        setSimilarProductsWarning(highestMatch);
+      } catch (e) {
+        console.error(e);
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [name, editingProduct]);
+
+  // Cek konflik barcode secara real-time
+  useEffect(() => {
+    const trimmed = baseBarcode.trim();
+    if (!trimmed) {
+      setBarcodeConflictWarning(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const existing = await db.product_barcodes.where('barcode').equals(trimmed).first();
+        if (existing && (!editingProduct || existing.product_id !== editingProduct.product.id)) {
+          const ownerProduct = await db.products.get(existing.product_id);
+          setBarcodeConflictWarning({
+            barcode: trimmed,
+            productName: ownerProduct ? ownerProduct.name : 'Produk Lain',
+          });
+        } else {
+          setBarcodeConflictWarning(null);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [baseBarcode, editingProduct]);
 
   useEffect(() => {
     if (editingProduct) {
@@ -372,6 +436,17 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 required
                 autoFocus
               />
+              {similarProductsWarning && !editingProduct && (
+                <div className="p-2.5 bg-amber-500/10 border border-amber-500/25 rounded-xl text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2 animate-in fade-in duration-150">
+                  <AlertTriangle className="size-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                  <div className="flex flex-col">
+                    <span className="font-bold">Potensi Produk Serupa ({similarProductsWarning.score}%)</span>
+                    <span className="text-[11px] leading-tight mt-0.5">
+                      Sudah ada produk aktif <strong>&ldquo;{similarProductsWarning.name}&rdquo;</strong>. Pastikan ini bukan produk yang sama sebelum mendaftarkan baru.
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -593,6 +668,18 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                   className="h-10 pl-9 pr-3 w-full bg-background border border-input rounded-card text-foreground font-mono text-xs focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
+
+              {barcodeConflictWarning && (
+                <div className="p-2.5 bg-destructive/10 border border-destructive/25 rounded-xl text-xs text-destructive flex items-start gap-2 animate-in fade-in duration-150">
+                  <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+                  <div className="flex flex-col">
+                    <span className="font-bold">Barcode Sudah Terdaftar!</span>
+                    <span className="text-[11px] leading-tight mt-0.5">
+                      Barcode <strong>&ldquo;{barcodeConflictWarning.barcode}&rdquo;</strong> sudah dipakai oleh produk <strong>&ldquo;{barcodeConflictWarning.productName}&rdquo;</strong>.
+                    </span>
+                  </div>
+                </div>
+              )}
 
               {/* Bantuan Barcode Internal */}
               <div className="flex items-center justify-between text-[11px] pt-1 border-t border-border/50">
