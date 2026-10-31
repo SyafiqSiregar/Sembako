@@ -10,6 +10,7 @@ import { LabelPrintModal } from './LabelPrintModal';
 import { DuplicateAssistantModal } from './DuplicateAssistantModal';
 import { isInternalBarcode } from '@/domain/barcode/ean13';
 import { SettingsService } from '@/services/settings.service';
+import { hasPermission } from '@/domain/permissions';
 import {
   Package,
   Plus,
@@ -31,6 +32,7 @@ import {
 
 export const ProductCatalogView: React.FC = () => {
   const { currentUser, roleCodes } = useAuthStore();
+  const canManageCatalog = useMemo(() => hasPermission(roleCodes, 'catalog.manage'), [roleCodes]);
   const [products, setProducts] = useState<ProductDetail[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -226,14 +228,22 @@ export const ProductCatalogView: React.FC = () => {
 
             {/* Action Buttons */}
             <div className="flex flex-wrap items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => setIsCsvModalOpen(true)}
-                className="h-9 px-3 rounded-pill bg-background border border-input text-xs font-semibold text-foreground hover:bg-muted transition-colors shadow-xs flex items-center gap-1.5"
-              >
-                <UploadCloud className="size-3.5 text-muted-foreground" />
-                <span>Impor Excel / CSV</span>
-              </button>
+              {!canManageCatalog && (
+                <span className="px-2.5 py-1 rounded-pill bg-secondary text-secondary-foreground text-[11px] font-semibold">
+                  Mode Cek Harga & Label
+                </span>
+              )}
+
+              {canManageCatalog && (
+                <button
+                  type="button"
+                  onClick={() => setIsCsvModalOpen(true)}
+                  className="h-9 px-3 rounded-pill bg-background border border-input text-xs font-semibold text-foreground hover:bg-muted transition-colors shadow-xs flex items-center gap-1.5"
+                >
+                  <UploadCloud className="size-3.5 text-muted-foreground" />
+                  <span>Impor Excel / CSV</span>
+                </button>
+              )}
 
               <button
                 type="button"
@@ -245,33 +255,37 @@ export const ProductCatalogView: React.FC = () => {
                 <span>Cetak Label</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => setIsCategoryModalOpen(true)}
-                className="h-9 px-3 rounded-pill bg-background border border-input text-xs font-semibold text-foreground hover:bg-muted transition-colors shadow-xs flex items-center gap-1.5"
-              >
-                <FolderPlus className="size-3.5 text-muted-foreground" />
-                <span>Kategori</span>
-              </button>
+              {canManageCatalog && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setIsCategoryModalOpen(true)}
+                    className="h-9 px-3 rounded-pill bg-background border border-input text-xs font-semibold text-foreground hover:bg-muted transition-colors shadow-xs flex items-center gap-1.5"
+                  >
+                    <FolderPlus className="size-3.5 text-muted-foreground" />
+                    <span>Kategori</span>
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => setIsDuplicateGuideOpen(true)}
-                className="h-9 px-3 rounded-pill bg-background border border-input text-xs font-semibold text-foreground hover:bg-muted transition-colors shadow-xs flex items-center gap-1.5"
-                title="Panduan menangani barang ganda / salah input"
-              >
-                <HelpCircle className="size-3.5 text-muted-foreground" />
-                <span>Barang Duplikat?</span>
-              </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsDuplicateGuideOpen(true)}
+                    className="h-9 px-3 rounded-pill bg-background border border-input text-xs font-semibold text-foreground hover:bg-muted transition-colors shadow-xs flex items-center gap-1.5"
+                    title="Panduan menangani barang ganda / salah input"
+                  >
+                    <HelpCircle className="size-3.5 text-muted-foreground" />
+                    <span>Barang Duplikat?</span>
+                  </button>
 
-              <button
-                type="button"
-                onClick={handleCreateNew}
-                className="h-9 px-3.5 rounded-pill bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary-hover transition-colors shadow-xs flex items-center gap-1.5"
-              >
-                <Plus className="size-3.5" />
-                <span>Tambah Produk</span>
-              </button>
+                  <button
+                    type="button"
+                    onClick={handleCreateNew}
+                    className="h-9 px-3.5 rounded-pill bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary-hover transition-colors shadow-xs flex items-center gap-1.5"
+                  >
+                    <Plus className="size-3.5" />
+                    <span>Tambah Produk</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
@@ -370,15 +384,17 @@ export const ProductCatalogView: React.FC = () => {
             <p className="text-xs text-muted-foreground max-w-sm">
               {searchQuery
                 ? `Tidak ada produk yang cocok dengan pencarian '${searchQuery}'.`
-                : 'Belum ada produk dalam kategori ini. Silakan tambah produk pertama Anda.'}
+                : 'Belum ada produk dalam kategori ini.'}
             </p>
-            <button
-              type="button"
-              onClick={handleCreateNew}
-              className="mt-2 px-4 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-pill hover:bg-primary-hover shadow-sm"
-            >
-              Tambah Produk Pertama
-            </button>
+            {canManageCatalog && (
+              <button
+                type="button"
+                onClick={handleCreateNew}
+                className="mt-2 px-4 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-pill hover:bg-primary-hover shadow-sm"
+              >
+                Tambah Produk Pertama
+              </button>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -388,7 +404,7 @@ export const ProductCatalogView: React.FC = () => {
                   <th className="py-3 px-4">Nama Produk & Barcode</th>
                   <th className="py-3 px-4">Kategori</th>
                   <th className="py-3 px-4 text-right">Harga Jual</th>
-                  <th className="py-3 px-4 text-right">Harga Modal</th>
+                  {canManageCatalog && <th className="py-3 px-4 text-right">Harga Modal</th>}
                   <th className="py-3 px-4 text-center">Stok</th>
                   <th className="py-3 px-4 text-center">Status</th>
                   <th className="py-3 px-4 text-right">Aksi</th>
@@ -436,15 +452,17 @@ export const ProductCatalogView: React.FC = () => {
                             ) : (
                               <div className="flex items-center gap-1.5">
                                 <span className="text-muted-foreground italic">Tanpa barcode</span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleCreateInternalBarcode(item)}
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-pill text-[10px] font-semibold bg-primary/15 text-primary hover:bg-primary/25 transition shadow-xs"
-                                  title="Buat barcode internal otomatis untuk barang ini"
-                                >
-                                  <Sparkles className="size-2.5" />
-                                  <span>+ Barcode</span>
-                                </button>
+                                {canManageCatalog && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCreateInternalBarcode(item)}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-pill text-[10px] font-semibold bg-primary/15 text-primary hover:bg-primary/25 transition shadow-xs"
+                                    title="Buat barcode internal otomatis untuk barang ini"
+                                  >
+                                    <Sparkles className="size-2.5" />
+                                    <span>+ Barcode</span>
+                                  </button>
+                                )}
                               </div>
                             )}
                           </div>
@@ -482,18 +500,20 @@ export const ProductCatalogView: React.FC = () => {
                         )}
                       </td>
 
-                      <td className="py-3.5 px-4 text-right text-muted-foreground tabular-nums">
-                        <div>{baseUnit ? formatRupiah(Math.round(baseUnit.cost_x10k / 10000)) : 'Rp 0'}</div>
-                        {secondaryUnits.length > 0 && (
-                          <div className="text-[10px] text-muted-foreground mt-1">
-                            {secondaryUnits.map((u) => (
-                              <div key={u.id}>
-                                {u.name}: {formatRupiah(Math.round(u.cost_x10k / 10000))}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </td>
+                      {canManageCatalog && (
+                        <td className="py-3.5 px-4 text-right text-muted-foreground tabular-nums">
+                          <div>{baseUnit ? formatRupiah(Math.round(baseUnit.cost_x10k / 10000)) : 'Rp 0'}</div>
+                          {secondaryUnits.length > 0 && (
+                            <div className="text-[10px] text-muted-foreground mt-1">
+                              {secondaryUnits.map((u) => (
+                                <div key={u.id}>
+                                  {u.name}: {formatRupiah(Math.round(u.cost_x10k / 10000))}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                      )}
 
                       <td className="py-3.5 px-4 text-center font-bold tabular-nums">
                         <span
@@ -536,15 +556,17 @@ export const ProductCatalogView: React.FC = () => {
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-1">
                           {item.product.active === 0 ? (
-                            <button
-                              type="button"
-                              onClick={() => handleReactivate(item.product.id, item.product.name)}
-                              className="h-7 px-2.5 rounded-pill flex items-center gap-1 text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100 transition-colors shadow-xs"
-                              title="Aktifkan Kembali Produk"
-                            >
-                              <RotateCcw className="size-3 text-emerald-600" />
-                              <span>Aktifkan</span>
-                            </button>
+                            canManageCatalog && (
+                              <button
+                                type="button"
+                                onClick={() => handleReactivate(item.product.id, item.product.name)}
+                                className="h-7 px-2.5 rounded-pill flex items-center gap-1 text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100 transition-colors shadow-xs"
+                                title="Aktifkan Kembali Produk"
+                              >
+                                <RotateCcw className="size-3 text-emerald-600" />
+                                <span>Aktifkan</span>
+                              </button>
+                            )
                           ) : (
                             <>
                               <button
@@ -555,22 +577,26 @@ export const ProductCatalogView: React.FC = () => {
                               >
                                 <Printer className="size-3.5" />
                               </button>
-                              <button
-                                type="button"
-                                onClick={() => handleEdit(item)}
-                                className="size-8 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                                title="Edit Produk"
-                              >
-                                <Edit2 className="size-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleArchive(item.product.id, item.product.name)}
-                                className="size-8 rounded-full flex items-center justify-center text-muted-foreground hover:bg-destructive/15 hover:text-destructive-text transition-colors"
-                                title="Arsipkan Produk"
-                              >
-                                <Archive className="size-3.5" />
-                              </button>
+                              {canManageCatalog && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEdit(item)}
+                                    className="size-8 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                                    title="Edit Produk"
+                                  >
+                                    <Edit2 className="size-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleArchive(item.product.id, item.product.name)}
+                                    className="size-8 rounded-full flex items-center justify-center text-muted-foreground hover:bg-destructive/15 hover:text-destructive-text transition-colors"
+                                    title="Arsipkan Produk"
+                                  >
+                                    <Archive className="size-3.5" />
+                                  </button>
+                                </>
+                              )}
                             </>
                           )}
                         </div>

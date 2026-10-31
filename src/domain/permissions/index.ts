@@ -9,6 +9,7 @@
 export type RoleCode = 'owner' | 'supervisor' | 'cashier' | 'stock_clerk';
 
 export type Permission =
+  | 'dashboard.view'
   | 'session.open_close'
   | 'sale.create'
   | 'sale.discount_standard'
@@ -18,10 +19,13 @@ export type Permission =
   | 'sale.history_all'
   | 'sale.void'
   | 'sale.return'
+  | 'catalog.view'
   | 'catalog.manage'
   | 'catalog.change_price'
   | 'receiving.create'
+  | 'inventory.view'
   | 'inventory.adjust'
+  | 'expiry.view'
   | 'stocktake.count'
   | 'stocktake.post'
   | 'reports.sales_profit'
@@ -34,6 +38,7 @@ export type Permission =
 
 export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
   owner: [
+    'dashboard.view',
     'session.open_close',
     'sale.create',
     'sale.discount_standard',
@@ -43,10 +48,13 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     'sale.history_all',
     'sale.void',
     'sale.return',
+    'catalog.view',
     'catalog.manage',
     'catalog.change_price',
     'receiving.create',
+    'inventory.view',
     'inventory.adjust',
+    'expiry.view',
     'stocktake.count',
     'stocktake.post',
     'reports.sales_profit',
@@ -58,6 +66,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     'settings.manage',
   ],
   supervisor: [
+    'dashboard.view',
     'session.open_close',
     'sale.create',
     'sale.discount_standard',
@@ -67,10 +76,13 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     'sale.history_all',
     'sale.void',
     'sale.return',
+    'catalog.view',
     'catalog.manage',
     'catalog.change_price',
     'receiving.create',
+    'inventory.view',
     'inventory.adjust',
+    'expiry.view',
     'stocktake.count',
     'stocktake.post',
     'reports.sales_profit',
@@ -79,16 +91,23 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     'backup.create',
   ],
   cashier: [
+    'dashboard.view',
     'session.open_close',
     'sale.create',
     'sale.discount_standard',
     'sale.reprint',
     'sale.history_own',
+    'catalog.view',
+    'inventory.view',
+    'expiry.view',
   ],
   stock_clerk: [
+    'catalog.view',
     'catalog.manage',
     'receiving.create',
+    'inventory.view',
     'inventory.adjust',
+    'expiry.view',
     'stocktake.count',
     'reports.stock_expiry',
   ],

@@ -13,13 +13,15 @@ import {
 import { BackupService, type BackupValidationResult } from '@/services/backup.service';
 import { type BackupHistory } from '@/data/db';
 import { useAuthStore } from '@/features/auth/authStore';
+import { hasPermission } from '@/domain/permissions';
 
 interface BackupRestoreTabProps {
   backupService: BackupService;
 }
 
 export const BackupRestoreTab: React.FC<BackupRestoreTabProps> = ({ backupService }) => {
-  const { currentUser } = useAuthStore();
+  const { currentUser, roleCodes } = useAuthStore();
+  const canRestore = hasPermission(roleCodes, 'backup.restore');
   const [history, setHistory] = useState<BackupHistory[]>([]);
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -200,16 +202,22 @@ export const BackupRestoreTab: React.FC<BackupRestoreTabProps> = ({ backupServic
           </div>
 
           <div className="pt-2">
-            <label className="w-full h-9 px-4 border border-input hover:bg-muted text-foreground text-xs font-semibold rounded-pill flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs">
-              <Upload className="size-3.5 text-muted-foreground" />
-              <span>Pilih Berkas Backup (.json)</span>
-              <input
-                type="file"
-                accept=".json"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-            </label>
+            {canRestore ? (
+              <label className="w-full h-9 px-4 border border-input hover:bg-muted text-foreground text-xs font-semibold rounded-pill flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs">
+                <Upload className="size-3.5 text-muted-foreground" />
+                <span>Pilih Berkas Backup (.json)</span>
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+              </label>
+            ) : (
+              <div className="w-full h-9 px-4 border border-border bg-muted/50 text-muted-foreground text-xs font-medium rounded-pill flex items-center justify-center gap-2 cursor-not-allowed">
+                <span>Restore hanya diizinkan untuk Pemilik Toko (Owner)</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

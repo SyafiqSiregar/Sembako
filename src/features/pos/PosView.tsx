@@ -116,31 +116,7 @@ export const PosView: React.FC = () => {
       const cats = await catalogService.listCategories();
       setCategories(cats.filter((c) => c.active === 1));
 
-      let activeProds = (await catalogService.listProducts()).filter((p) => p.product.active === 1);
-
-      // Inisialisasi saldo awal toko jika seluruh stok produk bernilai 0 (AGENTS.md §4.2: Satu Pintu InventoryService)
-      const totalStockAll = activeProds.reduce((s, p) => s + p.totalStockBase, 0);
-      if (totalStockAll === 0 && activeProds.length > 0) {
-        for (const p of activeProds) {
-          const baseUnit = p.units[0];
-          const qty = (baseUnit?.conversion_factor || 1) * 50; // 50 kemasan
-          await inventoryService.recordMovement({
-            type: 'INITIAL_BALANCE',
-            refType: 'opening',
-            userId: currentUser?.id || 'system',
-            reason: 'Inisialisasi saldo awal inventaris toko',
-            items: [
-              {
-                productId: p.product.id,
-                qtyDeltaBase: qty,
-                unitCostX10k: baseUnit?.cost_x10k || 100000000,
-              },
-            ],
-          });
-        }
-        activeProds = (await catalogService.listProducts()).filter((p) => p.product.active === 1);
-      }
-
+      const activeProds = (await catalogService.listProducts()).filter((p) => p.product.active === 1);
       setProducts(activeProds);
 
       const idx = new ProductSearchIndex();

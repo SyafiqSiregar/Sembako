@@ -4,6 +4,44 @@ Catatan seluruh perubahan, implementasi fitur, pembaruan skema, dan keputusan ar
 
 Format mengacu pada [Keep a Changelog](https://keepachangelog.com/id/1.0.0/).
 
+## [Penegakan Hak Akses Peran (RBAC 4 Lapis), Route Guarding & Pembersihan Kode] - 2026-11-01
+
+**Penegakan Role-Based Access Control (RBAC), Route Guarding, Proteksi Service Pengaturan (OQ-L09), dan Pembersihan Kode (OQ-L08):**
+- **Komponen Route Guard (`src/components/shared/RouteGuard.tsx` & `src/app/App.tsx`):**
+  - Mencegah bypass akses via pengetikan URL langsung (`/settings`, `/reports`, `/products`, `/inventory`, `/expiry`, `/suppliers`) oleh peran yang tidak berwenang.
+  - Merender halaman *Akses Dibatasi* (`role="alert"`, `aria-live="polite"`) lengkap dengan info akun & peran aktif, izin yang dibutuhkan, tombol kembali ke ruang kerja, dan tombol ganti pengguna/peran.
+- **Filter Navigasi Dinamis & 6 Menu Mode Baca Aman Kasir (`src/components/layout/AppLayout.tsx` & `src/app/App.tsx`):**
+  - Menyaring daftar menu di sidebar desktop/tablet landscape dan drawer mobile/tablet portrait berdasarkan `roleCodes` pengguna aktif.
+  - Kasir mendapat akses **6 menu operasional utama + Bantuan** (`Ringkasan`, `Kasir POS`, `Produk`, `Inventaris`, `Kedaluwarsa`, `Transaksi`, `Bantuan`) agar dapat melayani cek harga, cetak label rak, cek stok fisik, dan pantau batch kedaluwarsa di rak.
+  - Menu rahasia/manajerial (`Pemasok`, `Laporan`, `Pengaturan`) tetap disembunyikan dan diblokir via `<RouteGuard>` untuk Kasir.
+  - Kartu status *Backup lokal* dan tombol *Buka Kasir* hanya tampil bagi peran yang memiliki izin terkait (`backup.create`, `session.open_close`).
+- **Mode Baca Aman & Proteksi Rahasia Dapur Toko untuk Kasir:**
+  - **Ringkasan (`src/features/dashboard/DashboardView.tsx`):** Menyembunyikan kartu *Est. Laba Kotor* dan *Nilai Persediaan (Rp)* bagi pengguna tanpa izin `reports.sales_profit` (diganti kartu *Katalog Produk* & *Komposisi Stok SKU*).
+  - **Produk (`src/features/catalog/ProductCatalogView.tsx`):** Menampilkan badge *Mode Cek Harga & Label* untuk Kasir (`!canManageCatalog`), menyembunyikan kolom *Harga Modal (HPP)* serta seluruh tombol mutasi (*Tambah Produk*, *Impor CSV*, *Kategori*, *Barang Duplikat*, *+ Barcode*, *Edit*, *Arsipkan*), namun tetap mengizinkan *Cetak Label* harga rak.
+  - **Inventaris (`src/features/inventory/InventoryView.tsx`):** Menampilkan badge *Mode Cek Stok* untuk Kasir (`!canAdjustStock`), menyembunyikan kartu & kolom *Estimasi Nilai Persediaan (HPP)* serta tombol *Stok Opname*, *Audit Konsistensi*, dan *Sesuaikan*, namun tetap mengizinkan lihat *Kartu Stok*.
+  - **Kedaluwarsa (`src/features/expiry/ExpiryView.tsx`):** Menyembunyikan kartu *Total Nilai Berisiko (HPP)*, kolom *Nilai HPP*, dan tombol pemusnahan *Keluarkan* (`Write-Off`) untuk Kasir (`!canWriteOff`), diganti indikator *Pantau Rak*.
+- **Proteksi Tab Pengaturan (`src/features/settings/SettingsView.tsx` & `src/features/settings/BackupRestoreTab.tsx`):**
+  - Tab *Identitas & Kebijakan* (`settings.manage`) dan *Pengguna & Peran* (`users.manage`) hanya tampil untuk **Owner**.
+  - Supervisor hanya melihat tab *Backup & Restore* (tombol Restore terkunci khusus Owner) dan *Jejak Audit*.
+- **Otorisasi Lapisan Service (`src/services/settings.service.ts` — `OQ-L09`):**
+  - Menegakkan `authorize(actor.roles, permission, actor.name)` pada `updateStoreSettings`, `createUser`, `resetUserPin`, dan `toggleUserStatus` sesuai `AGENTS.md` §4.3 dan `PRD.md` AC-13.
+- **Pembersihan Kode & Anti-Pola (`OQ-L08` & Auto-Lock):**
+  - Menghapus auto-seed stok 50 kemasan di `src/features/pos/PosView.tsx` sesuai `AGENTS.md` §3 Aturan 3.
+  - Menghapus input `autoLockMinutes` di `src/features/settings/StoreSettingsTab.tsx` setelah Opsi 2 resmi dibatalkan (YAGNI).
+- **Izin Baca Operasional (`src/domain/permissions/index.ts`) & Persistensi Login (`src/features/auth/authStore.ts`):**
+  - Menambahkan 4 izin baca eksplisit (`dashboard.view`, `catalog.view`, `inventory.view`, `expiry.view`) ke `ROLE_PERMISSIONS` agar akses halaman mode baca terpisah tegas dari izin ubah data/rahasia (`catalog.manage`, `inventory.adjust`, `reports.sales_profit`).
+  - Memperbaiki `useAuthStore.initialize()` agar memilih pengguna aktif berdasarkan `last_login_at` terbaru di IndexedDB, sehingga saat halaman di-refresh (`F5`), sesi Kasir tidak ter-reset kembali ke Owner.
+  - Menyaring notifikasi di `src/components/layout/NotificationCenterPopover.tsx` agar notifikasi *Backup* dan *Audit* yang mengarah ke `/settings` tidak ditampilkan kepada Kasir.
+- **Pengujian & Verifikasi:**
+  - 4 unit test di `tests/unit/components/RouteGuard.test.tsx`.
+  - 1 integrasi test otorisasi di `tests/integration/services/settings-audit.test.ts`.
+  - `pnpm typecheck`: 0 errors.
+  - `pnpm test`: 34 files, 165 tests passed (100% green).
+  - `pnpm db:check`: 6 Invarian database valid.
+  - `pnpm build`: Vite bundle production berhasil.
+
+---
+
 ## [Sistem Auto-Deteksi & Asisten Penggabungan Produk Duplikat] - 2026-10-31
 
 **Implementasi Sistem Cerdas Auto-Deteksi, Pencegahan Dini, dan Asisten Penggabungan Produk Duplikat (FR-CAT-01, AC-39, BR-18):**

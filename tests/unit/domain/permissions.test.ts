@@ -38,15 +38,21 @@ describe('Domain: Permissions Matrix (PRD §5.2, AC-13, AC-20, AC-30)', () => {
   });
 
   it('Kasir ditolak untuk operasi sensitif: void, penyesuaian stok, dan laporan laba (AC-13, AC-30)', () => {
-    // Diizinkan untuk kasir
+    // Diizinkan untuk kasir (transaksi + 4 menu mode baca operasional)
+    expect(hasPermission(['cashier'], 'dashboard.view')).toBe(true);
     expect(hasPermission(['cashier'], 'sale.create')).toBe(true);
     expect(hasPermission(['cashier'], 'session.open_close')).toBe(true);
     expect(hasPermission(['cashier'], 'sale.discount_standard')).toBe(true);
     expect(hasPermission(['cashier'], 'sale.reprint')).toBe(true);
     expect(hasPermission(['cashier'], 'sale.history_own')).toBe(true);
+    expect(hasPermission(['cashier'], 'catalog.view')).toBe(true);
+    expect(hasPermission(['cashier'], 'inventory.view')).toBe(true);
+    expect(hasPermission(['cashier'], 'expiry.view')).toBe(true);
 
-    // AC-13: ditolak void dan koreksi stok
+    // AC-13: ditolak void, kelola katalog, penerimaan pemasok, dan koreksi stok
     expect(hasPermission(['cashier'], 'sale.void')).toBe(false);
+    expect(hasPermission(['cashier'], 'catalog.manage')).toBe(false);
+    expect(hasPermission(['cashier'], 'receiving.create')).toBe(false);
     expect(hasPermission(['cashier'], 'inventory.adjust')).toBe(false);
 
     // AC-30: ditolak laporan laba, kelola user, dan pengaturan

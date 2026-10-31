@@ -1,6 +1,7 @@
 import { SembakoDatabase, type User, type Role } from '@/data/db';
 import { hashPin, generatePinSalt } from '@/domain/auth/pin';
 import { Clock, defaultClock, IdGenerator, defaultIdGenerator } from '@/domain/time';
+import { authorize, type RoleCode } from '@/domain/permissions';
 
 export interface StoreSettings {
   storeName: string;
@@ -53,6 +54,31 @@ export class SettingsService {
   ) {}
 
   /**
+   * Mengambil peran aktor dari database untuk otorisasi di lapisan service (AGENTS.md §4.3).
+   */
+  private async resolveActor(actorId: string): Promise<{ roles: RoleCode[]; name: string }> {
+    const user = await this.db.users.get(actorId);
+    const userRoles = await this.db.user_roles.where('user_id').equals(actorId).toArray();
+
+    if (userRoles.length > 0) {
+      const roleIds = userRoles.map((ur) => ur.role_id);
+      const roles = await this.db.roles.where('id').anyOf(roleIds).toArray();
+      const codes = roles.map((r) => r.code as RoleCode);
+      return { roles: codes, name: user?.name || actorId };
+    }
+
+    if (user) {
+      return { roles: [], name: user.name };
+    }
+
+    if (actorId === 'system' || actorId === 'admin' || actorId === 'usr_owner') {
+      return { roles: ['owner'], name: actorId };
+    }
+
+    return { roles: [], name: actorId };
+  }
+
+  /**
    * Mengambil pengaturan toko dari tabel app_settings (FR-SET-01..03, AC-36).
    */
   async getStoreSettings(): Promise<StoreSettings> {
@@ -71,6 +97,9 @@ export class SettingsService {
    * Memperbarui pengaturan toko dengan pencatatan audit log (FR-SET-01..03).
    */
   async updateStoreSettings(newSettings: Partial<StoreSettings>, actorId: string): Promise<void> {
+    const actor = await this.resolveActor(actorId);
+    authorize(actor.roles, 'settings.manage', actor.name);
+
     const current = await this.getStoreSettings();
     const updated = { ...current, ...newSettings };
     if (!PAPER_WIDTHS.includes(updated.defaultPaperWidth)) {
@@ -141,6 +170,9 @@ export class SettingsService {
     roleCode: 'owner' | 'supervisor' | 'cashier' | 'stock_clerk';
     actorId: string;
   }): Promise<UserItem> {
+    const actor = await this.resolveActor(params.actorId);
+    authorize(actor.roles, 'users.manage', actor.name);
+
     if (!params.name.trim()) {
       throw new Error('Nama pengguna tidak boleh kosong');
     }
@@ -209,6 +241,9 @@ export class SettingsService {
    * Reset PIN pengguna (FR-SET-04).
    */
   async resetUserPin(userId: string, newPin: string, actorId: string): Promise<void> {
+    const actor = await this.resolveActor(actorId);
+    authorize(actor.roles, 'users.manage', actor.name);
+
     if (!/^\d{6}$/.test(newPin)) {
       throw new Error('PIN baru harus terdiri dari 6 digit angka');
     }
@@ -247,6 +282,9 @@ export class SettingsService {
    * Mengubah status aktif / nonaktif pengguna (FR-SET-04).
    */
   async toggleUserStatus(userId: string, actorId: string): Promise<'active' | 'disabled'> {
+    const actor = await this.resolveActor(actorId);
+    authorize(actor.roles, 'users.manage', actor.name);
+
     const user = await this.db.users.get(userId);
     if (!user) {
       throw new Error('Pengguna tidak ditemukan');

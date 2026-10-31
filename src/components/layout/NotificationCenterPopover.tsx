@@ -17,6 +17,8 @@ import { db } from '@/data/db';
 import { InventoryService } from '@/services/inventory.service';
 import { BatchService } from '@/services/batch.service';
 import { formatRupiah } from '@/domain/money';
+import { useAuthStore } from '@/features/auth/authStore';
+import { hasPermission } from '@/domain/permissions';
 
 export type NotificationCategory = 'stock_expiry' | 'audit' | 'backup';
 export type NotificationSeverity = 'critical' | 'warning' | 'info';
@@ -42,6 +44,11 @@ export const NotificationCenterPopover: React.FC<NotificationCenterPopoverProps>
   const navigate = useNavigate();
   const location = useLocation();
   const containerRef = useRef<HTMLDivElement>(null);
+  const { roleCodes } = useAuthStore();
+
+  const canWriteOff = useMemo(() => hasPermission(roleCodes, 'inventory.adjust'), [roleCodes]);
+  const canViewAudit = useMemo(() => hasPermission(roleCodes, 'audit.view'), [roleCodes]);
+  const canCreateBackup = useMemo(() => hasPermission(roleCodes, 'backup.create'), [roleCodes]);
 
   const inventoryService = useMemo(() => new InventoryService(db), []);
   const batchService = useMemo(
@@ -132,7 +139,7 @@ export const NotificationCenterPopover: React.FC<NotificationCenterPopoverProps>
           description: `Batch ${previewBatches} otomatis diblokir dari POS dan perlu segera dimusnahkan (write-off).`,
           timestampLabel: 'FEFO Blokir',
           targetRoute: '/expiry',
-          actionLabel: 'Musnahkan Batch',
+          actionLabel: canWriteOff ? 'Musnahkan Batch' : 'Pantau Kedaluwarsa',
         });
       }
 
@@ -208,7 +215,7 @@ export const NotificationCenterPopover: React.FC<NotificationCenterPopoverProps>
         });
       }
 
-      if (todayMovements.length > 0) {
+      if (todayMovements.length > 0 && canViewAudit) {
         items.push({
           id: `audit-movement-${todayMovements.length}`,
           category: 'audit',
@@ -230,17 +237,19 @@ export const NotificationCenterPopover: React.FC<NotificationCenterPopoverProps>
 
       if (!latestBackup) {
         onBackupStatusChange?.('Belum pernah di-backup', false);
-        items.push({
-          id: 'backup-never',
-          category: 'backup',
-          severity: 'warning',
-          title: 'Database Toko Belum Pernah Di-backup',
-          description:
-            'Data toko disimpan lokal di perangkat ini. Buat file cadangan (backup) secara berkala agar data barang & transaksi tetap aman.',
-          timestampLabel: 'Keamanan Data',
-          targetRoute: '/settings',
-          actionLabel: 'Backup Sekarang',
-        });
+        if (canCreateBackup) {
+          items.push({
+            id: 'backup-never',
+            category: 'backup',
+            severity: 'warning',
+            title: 'Database Toko Belum Pernah Di-backup',
+            description:
+              'Data toko disimpan lokal di perangkat ini. Buat file cadangan (backup) secara berkala agar data barang & transaksi tetap aman.',
+            timestampLabel: 'Keamanan Data',
+            targetRoute: '/settings',
+            actionLabel: 'Backup Sekarang',
+          });
+        }
       } else {
         const hoursSinceBackup = (now - latestBackup.created_at) / (1000 * 60 * 60);
         const formattedTime = new Date(latestBackup.created_at).toLocaleString(
@@ -255,7 +264,7 @@ export const NotificationCenterPopover: React.FC<NotificationCenterPopoverProps>
 
         onBackupStatusChange?.(formattedTime, hoursSinceBackup <= 24);
 
-        if (hoursSinceBackup > 24) {
+        if (hoursSinceBackup > 24 && canCreateBackup) {
           const daysAgo = Math.floor(hoursSinceBackup / 24);
           items.push({
             id: `backup-stale-${latestBackup.id}`,
@@ -276,7 +285,7 @@ export const NotificationCenterPopover: React.FC<NotificationCenterPopoverProps>
     } finally {
       setLoading(false);
     }
-  }, [inventoryService, batchService, onBackupStatusChange]);
+  }, [inventoryService, batchService, onBackupStatusChange, canWriteOff, canViewAudit, canCreateBackup]);
 
   // Muat notifikasi saat awal dan setiap berpindah halaman
   useEffect(() => {

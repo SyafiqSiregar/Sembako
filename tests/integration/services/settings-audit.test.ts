@@ -89,4 +89,34 @@ describe('SettingsService & AuditService (FR-SET-01..04, FR-AUD-01..03, AC-34..3
     const resetLogs = await auditService.listAuditLogs({ action: 'user.reset_pin' });
     expect(resetLogs.length).toBe(1);
   });
+
+  it('menolak perubahan pengaturan toko dan manajemen user bila dilakukan oleh Kasir (AC-13, OQ-L09)', async () => {
+    const cashier = await settingsService.createUser({
+      name: 'Supri Kasir',
+      pin: '123456',
+      roleCode: 'cashier',
+      actorId: 'usr_owner',
+    });
+
+    await expect(
+      settingsService.updateStoreSettings({ storeName: 'Toko Dibajak' }, cashier.id)
+    ).rejects.toThrow("Akses ditolak: Supri Kasir tidak memiliki hak akses untuk 'settings.manage'");
+
+    await expect(
+      settingsService.createUser({
+        name: 'Akun Gelap',
+        pin: '654321',
+        roleCode: 'owner',
+        actorId: cashier.id,
+      })
+    ).rejects.toThrow("Akses ditolak: Supri Kasir tidak memiliki hak akses untuk 'users.manage'");
+
+    await expect(
+      settingsService.resetUserPin(cashier.id, '000000', cashier.id)
+    ).rejects.toThrow("Akses ditolak: Supri Kasir tidak memiliki hak akses untuk 'users.manage'");
+
+    await expect(
+      settingsService.toggleUserStatus(cashier.id, cashier.id)
+    ).rejects.toThrow("Akses ditolak: Supri Kasir tidak memiliki hak akses untuk 'users.manage'");
+  });
 });

@@ -55,8 +55,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         });
       }
 
-      // Ambil user pertama sebagai user default
-      const defaultUser = await db.users.where('status').equals('active').first();
+      // Pilih pengguna aktif dengan waktu login terakhir paling baru (agar saat refresh halaman F5 akun tidak ter-reset)
+      const activeUsers = await db.users.where('status').equals('active').toArray();
+      activeUsers.sort((a, b) => (b.last_login_at ?? 0) - (a.last_login_at ?? 0));
+      const defaultUser = activeUsers[0];
       if (defaultUser) {
         const sessionData = await authService.getUserSessionData(defaultUser.id);
         const activeSession = await sessionService.getActiveSession();

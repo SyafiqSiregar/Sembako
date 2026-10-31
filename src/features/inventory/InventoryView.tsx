@@ -19,8 +19,12 @@ import { StockCardModal } from './StockCardModal';
 import { StockAdjustmentModal } from './StockAdjustmentModal';
 import { StocktakeModal } from './StocktakeModal';
 import { StocktakeService } from '@/services/stocktake.service';
+import { useAuthStore } from '@/features/auth/authStore';
+import { hasPermission } from '@/domain/permissions';
 
 export const InventoryView: React.FC = () => {
+  const { roleCodes } = useAuthStore();
+  const canAdjustStock = useMemo(() => hasPermission(roleCodes, 'inventory.adjust'), [roleCodes]);
   const inventoryService = useMemo(() => new InventoryService(db), []);
   const catalogService = useMemo(() => new CatalogService(db), []);
   const stocktakeService = useMemo(
@@ -151,25 +155,42 @@ export const InventoryView: React.FC = () => {
           </div>
         </div>
 
-        <div
-          className="bg-card p-3.5 sm:p-4 rounded-card border border-border shadow-sm min-w-0 overflow-hidden flex flex-col justify-between"
-          title={formatRupiah(totalValue)}
-        >
-          <div className="flex items-start justify-between gap-2 text-muted-foreground text-xs font-semibold">
-            <span className="leading-snug">Estimasi Nilai Persediaan</span>
-            <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded font-bold text-muted-foreground shrink-0">
-              HPP
-            </span>
-          </div>
-          <div className="mt-2 min-w-0">
-            <div className="text-xl sm:text-2xl font-extrabold text-primary tabular-nums tracking-tight truncate">
-              {totalValue >= 1_000_000 ? formatRupiahCompact(totalValue) : formatRupiah(totalValue)}
+        {canAdjustStock ? (
+          <div
+            className="bg-card p-3.5 sm:p-4 rounded-card border border-border shadow-sm min-w-0 overflow-hidden flex flex-col justify-between"
+            title={formatRupiah(totalValue)}
+          >
+            <div className="flex items-start justify-between gap-2 text-muted-foreground text-xs font-semibold">
+              <span className="leading-snug">Estimasi Nilai Persediaan</span>
+              <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded font-bold text-muted-foreground shrink-0">
+                HPP
+              </span>
             </div>
-            <div className="text-[11px] text-muted-foreground font-medium tabular-nums mt-0.5 truncate">
-              {totalValue >= 1_000_000 ? formatRupiah(totalValue) : 'Nilai modal stok aktif'}
+            <div className="mt-2 min-w-0">
+              <div className="text-xl sm:text-2xl font-extrabold text-primary tabular-nums tracking-tight truncate">
+                {totalValue >= 1_000_000 ? formatRupiahCompact(totalValue) : formatRupiah(totalValue)}
+              </div>
+              <div className="text-[11px] text-muted-foreground font-medium tabular-nums mt-0.5 truncate">
+                {totalValue >= 1_000_000 ? formatRupiah(totalValue) : 'Nilai modal stok aktif'}
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="bg-card p-3.5 sm:p-4 rounded-card border border-border shadow-sm min-w-0 overflow-hidden flex flex-col justify-between">
+            <div className="flex items-start justify-between gap-2 text-muted-foreground text-xs font-semibold">
+              <span className="leading-snug">Stok Aman</span>
+              <CheckCircle className="size-4 text-success-foreground shrink-0" />
+            </div>
+            <div className="mt-2 min-w-0">
+              <div className="text-xl sm:text-2xl font-extrabold text-success-foreground tabular-nums tracking-tight truncate">
+                {summaries.filter((s) => s.status === 'safe').length} Produk
+              </div>
+              <div className="text-[11px] text-muted-foreground font-medium mt-0.5 truncate">
+                Tersedia di atas batas min
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="bg-card p-3.5 sm:p-4 rounded-card border border-border shadow-sm min-w-0 overflow-hidden flex flex-col justify-between">
           <div className="flex items-start justify-between gap-2 text-muted-foreground text-xs font-semibold">
@@ -284,22 +305,31 @@ export const InventoryView: React.FC = () => {
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => setIsStocktakeModalOpen(true)}
-              className="h-9 px-3.5 rounded-pill bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary-hover flex items-center gap-1.5 transition-colors shadow-xs"
-            >
-              <ClipboardCheck className="size-3.5 text-emerald-300" />
-              <span>Stok Opname</span>
-            </button>
-            <button
-              onClick={handleCheckConsistency}
-              disabled={isCheckingConsistency || summaries.length === 0}
-              className="h-9 px-3 rounded-pill border border-input bg-background hover:bg-muted text-xs font-semibold text-foreground flex items-center gap-1.5 transition-colors shadow-xs disabled:opacity-50"
-              title="Periksa integritas saldo vs pergerakan ledger"
-            >
-              <ShieldCheck className="size-3.5 text-emerald-600" />
-              <span>{isCheckingConsistency ? 'Memeriksa...' : 'Audit Konsistensi'}</span>
-            </button>
+            {!canAdjustStock && (
+              <span className="h-9 px-3 rounded-pill bg-muted/70 border border-border text-muted-foreground text-xs font-semibold flex items-center gap-1.5">
+                Mode Cek Stok
+              </span>
+            )}
+            {canAdjustStock && (
+              <>
+                <button
+                  onClick={() => setIsStocktakeModalOpen(true)}
+                  className="h-9 px-3.5 rounded-pill bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary-hover flex items-center gap-1.5 transition-colors shadow-xs"
+                >
+                  <ClipboardCheck className="size-3.5 text-emerald-300" />
+                  <span>Stok Opname</span>
+                </button>
+                <button
+                  onClick={handleCheckConsistency}
+                  disabled={isCheckingConsistency || summaries.length === 0}
+                  className="h-9 px-3 rounded-pill border border-input bg-background hover:bg-muted text-xs font-semibold text-foreground flex items-center gap-1.5 transition-colors shadow-xs disabled:opacity-50"
+                  title="Periksa integritas saldo vs pergerakan ledger"
+                >
+                  <ShieldCheck className="size-3.5 text-emerald-600" />
+                  <span>{isCheckingConsistency ? 'Memeriksa...' : 'Audit Konsistensi'}</span>
+                </button>
+              </>
+            )}
             <button
               onClick={loadData}
               className="size-9 rounded-pill border border-input bg-background hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors shadow-xs"
@@ -328,7 +358,7 @@ export const InventoryView: React.FC = () => {
                   <th className="px-4 py-3.5">Kategori</th>
                   <th className="px-4 py-3.5 text-right">Stok Fisik</th>
                   <th className="px-4 py-3.5 text-right">Batas Min</th>
-                  <th className="px-4 py-3.5 text-right">Estimasi Nilai</th>
+                  {canAdjustStock && <th className="px-4 py-3.5 text-right">Estimasi Nilai</th>}
                   <th className="px-4 py-3.5 text-center">Status</th>
                   <th className="px-5 py-3.5 text-right">Aksi</th>
                 </tr>
@@ -358,9 +388,11 @@ export const InventoryView: React.FC = () => {
                     <td className="px-4 py-3.5 text-right text-muted-foreground font-mono">
                       {item.minStock} {item.unitName || item.baseUnitCode}
                     </td>
-                    <td className="px-4 py-3.5 text-right font-semibold text-foreground font-mono">
-                      {formatRupiah(item.estimatedValue)}
-                    </td>
+                    {canAdjustStock && (
+                      <td className="px-4 py-3.5 text-right font-semibold text-foreground font-mono">
+                        {formatRupiah(item.estimatedValue)}
+                      </td>
+                    )}
                     <td className="px-4 py-3.5 text-center">
                       <span
                         className={`inline-block px-2.5 py-0.5 rounded-pill text-[10px] font-bold uppercase tracking-wider ${
@@ -390,17 +422,19 @@ export const InventoryView: React.FC = () => {
                         <Layers className="size-3 inline mr-1" />
                         Kartu Stok
                       </button>
-                      <button
-                        onClick={async () => {
-                          const prod = await catalogService.getProductById(item.productId);
-                          if (prod) setActiveAdjustmentProduct(prod);
-                        }}
-                        className="px-2.5 py-1 rounded-pill border border-border bg-card hover:bg-muted text-foreground text-xs font-semibold transition-colors"
-                        title="Penyesuaian Stok Manual"
-                      >
-                        <Sliders className="size-3 inline mr-1" />
-                        Sesuaikan
-                      </button>
+                      {canAdjustStock && (
+                        <button
+                          onClick={async () => {
+                            const prod = await catalogService.getProductById(item.productId);
+                            if (prod) setActiveAdjustmentProduct(prod);
+                          }}
+                          className="px-2.5 py-1 rounded-pill border border-border bg-card hover:bg-muted text-foreground text-xs font-semibold transition-colors"
+                          title="Penyesuaian Stok Manual"
+                        >
+                          <Sliders className="size-3 inline mr-1" />
+                          Sesuaikan
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

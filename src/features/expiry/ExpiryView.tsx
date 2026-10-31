@@ -14,8 +14,16 @@ import { InventoryService } from '@/services/inventory.service';
 import { BatchService, type ExpiringBatchItem } from '@/services/batch.service';
 import { formatRupiah, formatRupiahCompact } from '@/domain/money';
 import { WriteOffModal } from './WriteOffModal';
+import { useAuthStore } from '@/features/auth/authStore';
+import { hasPermission } from '@/domain/permissions';
 
 export const ExpiryView: React.FC = () => {
+  const { roleCodes } = useAuthStore();
+  const canWriteOff = useMemo(
+    () => hasPermission(roleCodes, 'inventory.adjust'),
+    [roleCodes]
+  );
+
   const inventoryService = useMemo(() => new InventoryService(db), []);
   const batchService = useMemo(
     () => new BatchService(db, inventoryService),
@@ -151,30 +159,49 @@ export const ExpiryView: React.FC = () => {
           </div>
         </div>
 
-        {/* Nilai Risiko */}
-        <div
-          className="p-3.5 sm:p-4 bg-card border border-border rounded-card shadow-sm min-w-0 overflow-hidden flex flex-col justify-between"
-          title={formatRupiah(totalRiskValuation)}
-        >
-          <div className="flex items-start justify-between gap-2 mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground leading-snug">
-              Total Nilai Berisiko
-            </span>
-            <AlertTriangle className="w-4 h-4 text-muted-foreground shrink-0" />
-          </div>
-          <div className="min-w-0">
-            <div className="text-xl sm:text-2xl font-extrabold text-foreground tabular-nums tracking-tight truncate">
-              {totalRiskValuation >= 1_000_000
-                ? formatRupiahCompact(totalRiskValuation)
-                : formatRupiah(totalRiskValuation)}
+        {/* Nilai Risiko / Total Batch Pantauan */}
+        {canWriteOff ? (
+          <div
+            className="p-3.5 sm:p-4 bg-card border border-border rounded-card shadow-sm min-w-0 overflow-hidden flex flex-col justify-between"
+            title={formatRupiah(totalRiskValuation)}
+          >
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground leading-snug">
+                Total Nilai Berisiko
+              </span>
+              <AlertTriangle className="w-4 h-4 text-muted-foreground shrink-0" />
             </div>
-            <div className="text-[11px] text-muted-foreground mt-1 font-medium tabular-nums truncate">
-              {totalRiskValuation >= 1_000_000
-                ? formatRupiah(totalRiskValuation)
-                : 'HPP stok batch berisiko'}
+            <div className="min-w-0">
+              <div className="text-xl sm:text-2xl font-extrabold text-foreground tabular-nums tracking-tight truncate">
+                {totalRiskValuation >= 1_000_000
+                  ? formatRupiahCompact(totalRiskValuation)
+                  : formatRupiah(totalRiskValuation)}
+              </div>
+              <div className="text-[11px] text-muted-foreground mt-1 font-medium tabular-nums truncate">
+                {totalRiskValuation >= 1_000_000
+                  ? formatRupiah(totalRiskValuation)
+                  : 'HPP stok batch berisiko'}
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="p-3.5 sm:p-4 bg-card border border-border rounded-card shadow-sm min-w-0 overflow-hidden flex flex-col justify-between">
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground leading-snug">
+                Total Batch Pantauan
+              </span>
+              <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xl sm:text-2xl font-extrabold text-foreground tabular-nums tracking-tight truncate">
+                {batches.length} <span className="text-xs font-normal text-muted-foreground">batch</span>
+              </div>
+              <div className="text-[11px] text-muted-foreground mt-1 font-medium truncate">
+                Pantau tanggal kedaluwarsa di rak
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Unified Batch Table Card */}
@@ -202,6 +229,11 @@ export const ExpiryView: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
+            {!canWriteOff && (
+              <span className="h-7 px-2.5 rounded-pill bg-muted/70 border border-border text-muted-foreground text-[11px] font-semibold flex items-center gap-1 whitespace-nowrap">
+                Mode Pantau Rak
+              </span>
+            )}
             <button
               onClick={() => setStatusFilter('all')}
               className={`px-3 py-1 rounded-pill text-xs font-semibold whitespace-nowrap transition-colors ${
@@ -255,21 +287,21 @@ export const ExpiryView: React.FC = () => {
                 <th className="px-4 py-3.5">Tgl Kedaluwarsa</th>
                 <th className="px-4 py-3.5">Sisa Hari</th>
                 <th className="px-4 py-3.5 text-right">Stok Fisik</th>
-                <th className="px-4 py-3.5 text-right">Nilai HPP</th>
-                  <th className="px-3 py-3 text-center">Status</th>
-                  <th className="px-4 py-3 text-right">Aksi</th>
-                </tr>
+                {canWriteOff && <th className="px-4 py-3.5 text-right">Nilai HPP</th>}
+                <th className="px-3 py-3 text-center">Status</th>
+                <th className="px-4 py-3 text-right">Aksi</th>
+              </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-stone-400">
+                    <td colSpan={canWriteOff ? 8 : 7} className="px-4 py-8 text-center text-stone-400">
                       Memuat data batch kedaluwarsa...
                     </td>
                   </tr>
                 ) : filteredBatches.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-stone-400">
+                    <td colSpan={canWriteOff ? 8 : 7} className="px-4 py-8 text-center text-stone-400">
                       Tidak ada batch yang sesuai dengan filter.
                     </td>
                   </tr>
@@ -302,9 +334,11 @@ export const ExpiryView: React.FC = () => {
                       <td className="px-3 py-3 text-right font-bold text-stone-900">
                         {b.currentStock} {b.unitCode}
                       </td>
-                      <td className="px-3 py-3 text-right font-mono text-stone-700">
-                        {formatRupiah(b.valuationRupiah)}
-                      </td>
+                      {canWriteOff && (
+                        <td className="px-3 py-3 text-right font-mono text-stone-700">
+                          {formatRupiah(b.valuationRupiah)}
+                        </td>
+                      )}
                       <td className="px-3 py-3 text-center">
                         {b.status === 'EXPIRED' && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">
@@ -328,14 +362,20 @@ export const ExpiryView: React.FC = () => {
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => setSelectedBatchForWriteOff(b)}
-                          className="px-2.5 py-1 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-700 text-xs font-semibold flex items-center gap-1 ml-auto transition"
-                          title="Keluarkan / Musnahkan barang kedaluwarsa"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>Keluarkan</span>
-                        </button>
+                        {canWriteOff ? (
+                          <button
+                            onClick={() => setSelectedBatchForWriteOff(b)}
+                            className="px-2.5 py-1 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-700 text-xs font-semibold flex items-center gap-1 ml-auto transition"
+                            title="Keluarkan / Musnahkan barang kedaluwarsa"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Keluarkan</span>
+                          </button>
+                        ) : (
+                          <span className="text-[11px] text-muted-foreground font-medium">
+                            Pantau Rak
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))

@@ -209,10 +209,10 @@ Urutan: Opsi 3 (struk) → Opsi 2 (auto-lock) → Opsi 1 (barcode & label) → O
 - [OQ-01]: Font editorial menggunakan bundle font lokal `Fraunces` / `Newsreader` dengan fallback serif.
 - [OQ-02]: Default format mata uang Rupiah integer tanpa sen.
 - [OQ-03]: Batas diskon kasir default 5% (di atas itu butuh approval Supervisor/Owner).
-- [OQ-L01..L06]: Lihat `rencana_lanjutan.md` §6 (durasi auto-lock, nonaktifkan kunci, harga di label, kertas stiker, PIN saat buka aplikasi, definisi retur di laporan). Belum dijawab pemilik.
-- [OQ-L07]: `pnpm lint` gagal — paket `eslint` tidak ada di `package.json` dan tidak ada berkas konfigurasi. Menambah ESLint = dependensi baru (butuh persetujuan, AGENTS.md §7). Rekomendasi: pasang ESLint flat config + `typescript-eslint` + aturan `no-explicit-any`; ada beberapa `any` di `authStore.ts`/`TransactionHistoryView.tsx` yang akan terdeteksi.
-- [OQ-L08]: `PosView.loadCatalogData` mengisi stok 50 kemasan ke setiap produk bila total stok 0 (`INITIAL_BALANCE`). Ini data palsu di jalur produksi (AGENTS.md §3 Aturan 3). Tidak diubah di Opsi 3 karena di luar lingkup; perlu persetujuan pemilik karena mengubah perilaku yang berjalan.
-- [OQ-L09]: `SettingsService.updateStoreSettings` belum memanggil `authorize(..., 'settings.manage')` (AGENTS.md §4.3). Tidak diubah di Opsi 3; usulan tugas terpisah.
+- [OQ-L01..L02]: Opsi 2 (Kunci Layar Otomatis) resmi **dibatalkan/dicoret** sesuai keputusan pemilik toko karena tombol kunci manual `[ 🔒 ]` di Topbar sudah cukup dan mencegah gangguan antrean kasir. Input `autoLockMinutes` dihapus dari Pengaturan.
+- [OQ-L07]: `pnpm lint` belum terpasang paket `eslint` di `package.json`.
+- [OQ-L08]: **Selesai.** Auto-seed stok 50 kemasan di `PosView.loadCatalogData` telah dihapus sesuai `AGENTS.md` §3 Aturan 3.
+- [OQ-L09]: **Selesai.** `SettingsService.updateStoreSettings`, `createUser`, `resetUserPin`, dan `toggleUserStatus` kini menegakkan `authorize(actorRoles, permission)` di lapisan service sesuai `AGENTS.md` §4.3.
 
 ---
 
@@ -316,5 +316,12 @@ Urutan: Opsi 3 (struk) → Opsi 2 (auto-lock) → Opsi 1 (barcode & label) → O
       - Penggabungan stok 1-klik secara atomik via ledger `InventoryService` (`COUNT_ADJUSTMENT`) dan pengarsipan produk keliru (`active: 0`, AC-39).
       - Pencegahan dini *real-time* di form tambah barang saat mengetik nama serupa atau memindai barcode ganda.
     - **Pengujian**: Penambahan 9 tes baru (`auth.test.ts`, `duplicate-detector.test.ts`, `duplicate-merge.test.ts`). Total **33 berkas uji, 160 tes lulus (100% green)**, `pnpm typecheck` 0 error, `pnpm db:check` lulus, dan `pnpm build` sukses.
+  - **Penegakan Hak Akses Peran (RBAC 4 Lapis), Route Guarding, & Pembersihan Kode (`OQ-L08`, `OQ-L09`)**:
+    - **Navigasi Dinamis (`AppLayout.tsx`)**: Menyaring menu sidebar (desktop rail & tablet portrait drawer) secara reaktif berdasarkan `roleCodes` pengguna aktif. Kasir kini hanya melihat **Kasir POS**, **Transaksi**, dan **Bantuan**, serta otomatis diarahkan dari `/` ke `/pos`.
+    - **Route Guarding (`RouteGuard.tsx` & `App.tsx`)**: Mencegah bypass akses via pengetikan URL langsung (`/settings`, `/reports`, `/inventory`, `/products`, `/suppliers`) dengan menampilkan halaman **Akses Dibatasi** ramah kasir lengkap dengan pintasan kembali dan tombol ganti peran.
+    - **Proteksi Tab Pengaturan (`SettingsView.tsx` & `BackupRestoreTab.tsx`)**: Tab Identitas Toko dan Pengguna & Peran kini terkunci khusus untuk **Owner** (`settings.manage`, `users.manage`), sementara Supervisor hanya melihat tab Backup (tanpa Restore) & Jejak Audit.
+    - **Otorisasi Lapisan Service (`settings.service.ts` — `OQ-L09`)**: Menegakkan `authorize(actor.roles, permission, actor.name)` pada `updateStoreSettings`, `createUser`, `resetUserPin`, dan `toggleUserStatus` sesuai `AGENTS.md` §4.3.
+    - **Pembersihan Kode (`PosView.tsx` & `StoreSettingsTab.tsx` — `OQ-L08`)**: Menghapus injeksi stok dummy 50 kemasan di kasir POS dan menghapus input `autoLockMinutes` yang dibatalkan.
+    - **Pengujian**: 4 tes baru (`RouteGuard.test.tsx`, `settings-audit.test.ts`). Total **34 berkas uji, 164 tes lulus (100% green)**, `pnpm typecheck` 0 error, `pnpm db:check` lulus, dan `pnpm build` sukses.
 
 

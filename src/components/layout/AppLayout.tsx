@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   ScanBarcode,
@@ -25,27 +25,30 @@ import { NotificationCenterPopover } from './NotificationCenterPopover';
 import { useAuthStore } from '@/features/auth/authStore';
 import { LockScreenModal } from '@/features/auth/LockScreenModal';
 import { CashierSessionModal } from '@/features/auth/CashierSessionModal';
+import { hasPermission, type Permission, type RoleCode } from '@/domain/permissions';
 
 interface NavItem {
   name: string;
   path: string;
   icon: React.ComponentType<{ className?: string }>;
   tag?: string;
+  permission?: Permission;
+  allowedRoles?: RoleCode[];
 }
 
 const mainNavItems: NavItem[] = [
-  { name: 'Ringkasan', path: '/', icon: LayoutDashboard },
-  { name: 'Kasir POS', path: '/pos', icon: ScanBarcode },
-  { name: 'Produk', path: '/products', icon: Package },
-  { name: 'Inventaris', path: '/inventory', icon: Boxes },
-  { name: 'Kedaluwarsa', path: '/expiry', icon: CalendarClock },
-  { name: 'Pemasok', path: '/suppliers', icon: Truck },
-  { name: 'Transaksi', path: '/transactions', icon: ReceiptText },
-  { name: 'Laporan', path: '/reports', icon: BarChart3 },
+  { name: 'Ringkasan', path: '/', icon: LayoutDashboard, permission: 'dashboard.view' },
+  { name: 'Kasir POS', path: '/pos', icon: ScanBarcode, permission: 'sale.create' },
+  { name: 'Produk', path: '/products', icon: Package, permission: 'catalog.view' },
+  { name: 'Inventaris', path: '/inventory', icon: Boxes, permission: 'inventory.view' },
+  { name: 'Kedaluwarsa', path: '/expiry', icon: CalendarClock, permission: 'expiry.view' },
+  { name: 'Pemasok', path: '/suppliers', icon: Truck, permission: 'receiving.create' },
+  { name: 'Transaksi', path: '/transactions', icon: ReceiptText, permission: 'sale.history_own' },
+  { name: 'Laporan', path: '/reports', icon: BarChart3, permission: 'reports.sales_profit' },
 ];
 
 const secondaryNavItems: NavItem[] = [
-  { name: 'Pengaturan', path: '/settings', icon: Settings },
+  { name: 'Pengaturan', path: '/settings', icon: Settings, allowedRoles: ['owner', 'supervisor'] },
   { name: 'Bantuan', path: '/help', icon: HelpCircle },
 ];
 
@@ -55,6 +58,7 @@ interface AppLayoutProps {
 
 export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const isPos = location.pathname === '/pos';
 
   const routeMetadata: Record<
@@ -95,6 +99,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const {
     currentUser,
     roles,
+    roleCodes,
     activeSession,
     lockScreen,
     initialize,
@@ -103,6 +108,33 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   useEffect(() => {
     initialize();
   }, [initialize]);
+
+  // Filter menu berdasarkan izin peran pengguna yang sedang aktif
+  const filteredMainNav = useMemo(() => {
+    return mainNavItems.filter((item) => {
+      if (item.allowedRoles) return item.allowedRoles.some((r) => roleCodes.includes(r));
+      if (item.permission) return hasPermission(roleCodes, item.permission);
+      return true;
+    });
+  }, [roleCodes]);
+
+  const filteredSecondaryNav = useMemo(() => {
+    return secondaryNavItems.filter((item) => {
+      if (item.allowedRoles) return item.allowedRoles.some((r) => roleCodes.includes(r));
+      if (item.permission) return hasPermission(roleCodes, item.permission);
+      return true;
+    });
+  }, [roleCodes]);
+
+  const canManageBackup = useMemo(() => hasPermission(roleCodes, 'backup.create'), [roleCodes]);
+
+  // Arahkan Staf Gudang otomatis dari halaman Ringkasan (/) ke Katalog Produk
+  useEffect(() => {
+    if (!currentUser || roleCodes.length === 0) return;
+    if (location.pathname === '/' && roleCodes.includes('stock_clerk') && !roleCodes.includes('owner') && !roleCodes.includes('supervisor') && !roleCodes.includes('cashier')) {
+      navigate('/products', { replace: true });
+    }
+  }, [currentUser, roleCodes, location.pathname, navigate]);
 
   // Tutup mobile drawer saat navigasi berubah
   useEffect(() => {
@@ -161,7 +193,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
           {/* Menu Navigasi Utama */}
           <nav className="flex flex-col gap-1" aria-label="Navigasi Utama">
-            {mainNavItems.map((item) => {
+            {filteredMainNav.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
               return (
@@ -195,7 +227,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         {/* Menu Bawah & Status Card */}
         <div className="flex flex-col gap-3 pt-3 border-t border-border">
           <nav className="flex flex-col gap-1" aria-label="Navigasi Bawah">
-            {secondaryNavItems.map((item) => {
+            {filteredSecondaryNav.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
               return (
@@ -218,7 +250,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             })}
           </nav>
 
-          {!isSidebarCollapsed && (
+          {!isSidebarCollapsed && canManageBackup && (
             <NavLink
               to="/settings"
               className="bg-card hover:bg-muted/60 border border-border p-2.5 rounded-card flex flex-col gap-1 shadow-sm transition-colors"
@@ -313,7 +345,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
               {/* Navigasi Utama */}
               <nav className="flex flex-col gap-1" aria-label="Navigasi Tablet">
-                {mainNavItems.map((item) => {
+                {filteredMainNav.map((item) => {
                   const Icon = item.icon;
                   const isActive = location.pathname === item.path;
                   return (
@@ -345,7 +377,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             {/* Menu Bawah & Status */}
             <div className="flex flex-col gap-3 pt-3 border-t border-border">
               <nav className="flex flex-col gap-1">
-                {secondaryNavItems.map((item) => {
+                {filteredSecondaryNav.map((item) => {
                   const Icon = item.icon;
                   const isActive = location.pathname === item.path;
                   return (
@@ -366,23 +398,25 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                 })}
               </nav>
 
-              <NavLink
-                to="/settings"
-                onClick={() => setIsMobileDrawerOpen(false)}
-                className="bg-card hover:bg-muted/60 border border-border p-3 rounded-card flex flex-col gap-1 shadow-sm transition-colors"
-              >
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground font-medium">Backup lokal</span>
-                  <span
-                    className={`size-2 rounded-full ${
-                      backupStatus.isSafe ? 'bg-success-foreground' : 'bg-warning-foreground'
-                    }`}
-                  />
-                </div>
-                <p className="text-xs font-semibold text-foreground truncate">
-                  {backupStatus.label}
-                </p>
-              </NavLink>
+              {canManageBackup && (
+                <NavLink
+                  to="/settings"
+                  onClick={() => setIsMobileDrawerOpen(false)}
+                  className="bg-card hover:bg-muted/60 border border-border p-3 rounded-card flex flex-col gap-1 shadow-sm transition-colors"
+                >
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground font-medium">Backup lokal</span>
+                    <span
+                      className={`size-2 rounded-full ${
+                        backupStatus.isSafe ? 'bg-success-foreground' : 'bg-warning-foreground'
+                      }`}
+                    />
+                  </div>
+                  <p className="text-xs font-semibold text-foreground truncate">
+                    {backupStatus.label}
+                  </p>
+                </NavLink>
+              )}
             </div>
           </aside>
         </div>
@@ -425,24 +459,26 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
           {/* Global Header Actions (Rapi, Terukur, Bebas Tumpang Tindih di Mobile) */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-            {/* Status Sesi Kasir Button */}
-            <button
-              type="button"
-              onClick={handleOpenSessionModal}
-              className={`min-h-[36px] flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-xs font-semibold border transition-all shadow-sm active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-ring whitespace-nowrap shrink-0 ${
-                activeSession
-                  ? 'bg-secondary text-secondary-foreground border-secondary hover:bg-accent'
-                  : 'bg-warning/30 text-warning-foreground border-warning-foreground/25 hover:bg-warning/50'
-              }`}
-            >
-              <DollarSign className="size-3.5 shrink-0" />
-              <span className="hidden md:inline">
-                {activeSession ? 'Sesi Kas: Aktif' : 'Buka Kasir'}
-              </span>
-              <span className="inline md:hidden">
-                {activeSession ? 'Kasir Aktif' : 'Buka Kas'}
-              </span>
-            </button>
+            {/* Status Sesi Kasir Button (Hanya tampil bila punya izin session.open_close) */}
+            {hasPermission(roleCodes, 'session.open_close') && (
+              <button
+                type="button"
+                onClick={handleOpenSessionModal}
+                className={`min-h-[36px] flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-xs font-semibold border transition-all shadow-sm active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-ring whitespace-nowrap shrink-0 ${
+                  activeSession
+                    ? 'bg-secondary text-secondary-foreground border-secondary hover:bg-accent'
+                    : 'bg-warning/30 text-warning-foreground border-warning-foreground/25 hover:bg-warning/50'
+                }`}
+              >
+                <DollarSign className="size-3.5 shrink-0" />
+                <span className="hidden md:inline">
+                  {activeSession ? 'Sesi Kas: Aktif' : 'Buka Kasir'}
+                </span>
+                <span className="inline md:hidden">
+                  {activeSession ? 'Kasir Aktif' : 'Buka Kas'}
+                </span>
+              </button>
+            )}
 
             {/* Status Sinkronisasi Data (Tampil di >= sm; di Mobile < sm pindah ke dalam Drawer) */}
             <div className="hidden sm:block shrink-0">

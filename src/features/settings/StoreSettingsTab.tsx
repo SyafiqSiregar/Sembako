@@ -392,7 +392,7 @@ export const StoreSettingsTab: React.FC<StoreSettingsTabProps> = ({ settingsServ
             Kebijakan & Batas Keamanan Operasional
           </h3>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block font-semibold text-foreground mb-1 text-[11px]">
                 Batas Diskon Kasir (%)
@@ -406,21 +406,6 @@ export const StoreSettingsTab: React.FC<StoreSettingsTabProps> = ({ settingsServ
                 className="w-full h-9 px-3.5 bg-background border border-input rounded-pill text-foreground font-bold focus:outline-none focus:ring-2 focus:ring-ring font-mono"
               />
               <span className="text-[10px] text-muted-foreground mt-1 block">Di atas ini butuh Approval</span>
-            </div>
-
-            <div>
-              <label className="block font-semibold text-foreground mb-1 text-[11px]">
-                Kunci Otomatis (Menit)
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="120"
-                value={settings.autoLockMinutes}
-                onChange={(e) => setSettings({ ...settings, autoLockMinutes: parseInt(e.target.value, 10) || 15 })}
-                className="w-full h-9 px-3.5 bg-background border border-input rounded-pill text-foreground font-bold focus:outline-none focus:ring-2 focus:ring-ring font-mono"
-              />
-              <span className="text-[10px] text-muted-foreground mt-1 block">Waktu idle sebelum terkunci</span>
             </div>
 
             <div>

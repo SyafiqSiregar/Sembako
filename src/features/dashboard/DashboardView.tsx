@@ -6,6 +6,8 @@ import { BatchService } from '@/services/batch.service';
 import { InventoryService } from '@/services/inventory.service';
 import { CashierSessionService } from '@/services/session.service';
 import { formatRupiah, formatRupiahCompact } from '@/domain/money';
+import { useAuthStore } from '@/features/auth/authStore';
+import { hasPermission } from '@/domain/permissions';
 import {
   TrendingUp,
   AlertTriangle,
@@ -47,6 +49,8 @@ interface ActivityItem {
 
 export const DashboardView: React.FC = () => {
   const navigate = useNavigate();
+  const { roleCodes } = useAuthStore();
+  const canSeeProfit = useMemo(() => hasPermission(roleCodes, 'reports.sales_profit'), [roleCodes]);
 
   const [activeTab, setActiveTab] = useState<'today' | '7days' | 'month' | 'all'>('today');
   const [isLoading, setIsLoading] = useState(true);
@@ -240,10 +244,12 @@ export const DashboardView: React.FC = () => {
       // 4. Valuation & Stock Health
       const valuation = await reportService.getInventoryValuationReport();
 
-      // Group valuation by Category for Donut chart
+      // Group by Category for Donut chart (HPP value for Owner/Spv, SKU count for Cashier)
       const catTotals = new Map<string, number>();
+      const totalBasis = canSeeProfit ? valuation.totalValuation : valuation.items.length;
       for (const it of valuation.items) {
-        catTotals.set(it.categoryName, (catTotals.get(it.categoryName) || 0) + it.valuationRupiah);
+        const increment = canSeeProfit ? it.valuationRupiah : 1;
+        catTotals.set(it.categoryName, (catTotals.get(it.categoryName) || 0) + increment);
       }
       const sortedCats = Array.from(catTotals.entries()).sort((a, b) => b[1] - a[1]);
       const palette = ['#14463C', '#7DB594', '#F4B091', '#E69F73', '#D6D3C8'];
@@ -255,7 +261,7 @@ export const DashboardView: React.FC = () => {
       for (let i = 0; i < topCount; i++) {
         const [cName, val] = sortedCats[i]!;
         allocatedVal += val;
-        const pct = valuation.totalValuation > 0 ? (val / valuation.totalValuation) * 100 : 0;
+        const pct = totalBasis > 0 ? (val / totalBasis) * 100 : 0;
         topSegments.push({
           name: cName,
           percentage: Math.round(pct * 10) / 10,
@@ -265,9 +271,9 @@ export const DashboardView: React.FC = () => {
       }
 
       if (sortedCats.length > 4) {
-        const remainingVal = valuation.totalValuation - allocatedVal;
+        const remainingVal = totalBasis - allocatedVal;
         const remainingPct =
-          valuation.totalValuation > 0 ? (remainingVal / valuation.totalValuation) * 100 : 0;
+          totalBasis > 0 ? (remainingVal / totalBasis) * 100 : 0;
         topSegments.push({
           name: 'Lainnya',
           percentage: Math.round(remainingPct * 10) / 10,
@@ -301,7 +307,7 @@ export const DashboardView: React.FC = () => {
             it.status === 'Habis'
               ? 'bg-destructive text-destructive-text'
               : 'bg-warning text-warning-text',
-          actionLabel: 'Kelola Stok',
+          actionLabel: canSeeProfit ? 'Kelola Stok' : 'Cek Stok',
           actionRoute: '/inventory',
         });
       }
@@ -331,7 +337,7 @@ export const DashboardView: React.FC = () => {
           stockDisplay: `${b.currentStock} ${b.unitCode}`,
           badgeLabel,
           badgeClass,
-          actionLabel: b.status === 'EXPIRED' ? 'Pemusnahan' : 'Lihat Batch',
+          actionLabel: b.status === 'EXPIRED' ? (canSeeProfit ? 'Pemusnahan' : 'Lihat Batch') : 'Lihat Batch',
           actionRoute: '/expiry',
         });
       }
@@ -424,7 +430,7 @@ export const DashboardView: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [activeTab, reportService, batchService, sessionService]);
+  }, [activeTab, reportService, batchService, sessionService, canSeeProfit]);
 
   useEffect(() => {
     loadDashboardData();
@@ -640,26 +646,46 @@ export const DashboardView: React.FC = () => {
 
           {/* Baris 3 Kartu Metrik */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* Kartu 1: Laba Kotor */}
-            <div
-              onClick={() => navigate('/reports')}
-              className="bg-card border border-border rounded-card p-5 shadow-sm flex flex-col justify-between cursor-pointer hover:border-primary/50 transition-colors"
-            >
-              <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold">
-                <span className="uppercase tracking-wider">Est. Laba Kotor</span>
-                <ChevronRight className="size-4" />
-              </div>
-              <div className="mt-3">
-                <div className="font-serif font-bold text-2xl text-foreground tabular-nums">
-                  {formatRupiah(salesSummary ? salesSummary.estimatedGrossProfit : 0)}
+            {/* Kartu 1: Laba Kotor (Owner/Supervisor) atau Produk Aktif (Kasir) */}
+            {canSeeProfit ? (
+              <div
+                onClick={() => navigate('/reports')}
+                className="bg-card border border-border rounded-card p-5 shadow-sm flex flex-col justify-between cursor-pointer hover:border-primary/50 transition-colors"
+              >
+                <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold">
+                  <span className="uppercase tracking-wider">Est. Laba Kotor</span>
+                  <ChevronRight className="size-4" />
                 </div>
-                <div className="flex items-center gap-1 text-xs text-success-text font-medium mt-1">
-                  <span>
-                    {salesSummary ? `${salesSummary.grossProfitMarginPercent}%` : '0%'} margin rata-rata
-                  </span>
+                <div className="mt-3">
+                  <div className="font-serif font-bold text-2xl text-foreground tabular-nums">
+                    {formatRupiah(salesSummary ? salesSummary.estimatedGrossProfit : 0)}
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-success-text font-medium mt-1">
+                    <span>
+                      {salesSummary ? `${salesSummary.grossProfitMarginPercent}%` : '0%'} margin rata-rata
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div
+                onClick={() => navigate('/products')}
+                className="bg-card border border-border rounded-card p-5 shadow-sm flex flex-col justify-between cursor-pointer hover:border-primary/50 transition-colors"
+              >
+                <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold">
+                  <span className="uppercase tracking-wider">Katalog Produk</span>
+                  <ChevronRight className="size-4" />
+                </div>
+                <div className="mt-3">
+                  <div className="font-serif font-bold text-2xl text-foreground tabular-nums">
+                    {valuationData.items.length} SKU
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground font-medium mt-1">
+                    <span>Cek harga jual & cetak label rak</span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Kartu 2: Transaksi Kasir */}
             <div
@@ -788,7 +814,7 @@ export const DashboardView: React.FC = () => {
           <div className="bg-card border border-border rounded-card p-6 shadow-sm flex flex-col gap-5">
             <div className="flex items-center justify-between">
               <h2 className="font-serif font-semibold text-lg text-foreground">
-                Nilai Persediaan
+                {canSeeProfit ? 'Nilai Persediaan' : 'Komposisi Stok'}
               </h2>
               <button
                 type="button"
@@ -814,7 +840,7 @@ export const DashboardView: React.FC = () => {
                 />
 
                 {/* Slices */}
-                {valuationData.totalValuation > 0 &&
+                {(canSeeProfit ? valuationData.totalValuation > 0 : valuationData.items.length > 0) &&
                   (() => {
                     let accOffset = 0;
                     return valuationData.categorySegments.map((seg, idx) => {
@@ -840,16 +866,16 @@ export const DashboardView: React.FC = () => {
 
               <div
                 className="absolute inset-0 flex flex-col items-center justify-center text-center p-3"
-                title={`Total Nilai Stok: ${formatRupiah(valuationData.totalValuation)}`}
+                title={canSeeProfit ? `Total Nilai Stok: ${formatRupiah(valuationData.totalValuation)}` : `Total Produk: ${valuationData.items.length} SKU`}
               >
                 <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mb-1">
-                  Total Nilai Stok
+                  {canSeeProfit ? 'Total Nilai Stok' : 'Total Produk'}
                 </span>
                 <span className="font-serif font-bold text-2xl text-foreground tracking-tight leading-none tabular-nums">
-                  {formatRupiahCompact(valuationData.totalValuation)}
+                  {canSeeProfit ? formatRupiahCompact(valuationData.totalValuation) : `${valuationData.items.length} SKU`}
                 </span>
                 <span className="text-[10px] text-muted-foreground/80 font-medium tabular-nums mt-1.5">
-                  {formatRupiah(valuationData.totalValuation)}
+                  {canSeeProfit ? formatRupiah(valuationData.totalValuation) : 'Barang aktif'}
                 </span>
               </div>
             </div>
