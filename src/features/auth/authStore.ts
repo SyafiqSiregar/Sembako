@@ -20,6 +20,7 @@ interface AuthState {
   login: (userId: string, pin: string) => Promise<boolean>;
   logout: () => void;
   lockScreen: (options?: { selectUser?: boolean }) => void;
+  closeLockScreen: () => void;
   unlockScreen: (pin: string) => Promise<boolean>;
   openSession: (openingCash: number) => Promise<void>;
   closeSession: (closingCash: number, notes?: string) => Promise<{ discrepancy: number; expectedCash: number }>;
@@ -111,6 +112,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   lockScreen: (options?: { selectUser?: boolean }) => {
     set({ isLocked: true, startInUserSelect: !!options?.selectUser, error: null });
+  },
+
+  closeLockScreen: () => {
+    set({ isLocked: false, startInUserSelect: false, error: null });
   },
 
   unlockScreen: async (pin: string) => {

@@ -8,6 +8,7 @@ import {
   Loader2,
   ArrowRightLeft,
   ChevronRight,
+  X,
 } from 'lucide-react';
 
 export const LockScreenModal: React.FC = () => {
@@ -20,12 +21,31 @@ export const LockScreenModal: React.FC = () => {
     error,
     isLoading,
     clearError,
+    closeLockScreen,
   } = useAuthStore();
 
   const [activeUsers, setActiveUsers] = useState<ActiveUserOption[]>([]);
   const [selectedUser, setSelectedUser] = useState<ActiveUserOption | null>(null);
   const [isSelectingUser, setIsSelectingUser] = useState(false);
   const [pin, setPin] = useState('');
+
+  const handleClose = () => {
+    clearError();
+    setPin('');
+    setIsSelectingUser(false);
+    closeLockScreen();
+  };
+
+  // Keyboard shortcut: Esc untuk menutup modal dan kembali ke layar kasir
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isLocked && currentUser) {
+        handleClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isLocked, currentUser]);
 
   // Muat daftar pengguna aktif saat layar terkunci
   useEffect(() => {
@@ -114,8 +134,26 @@ export const LockScreenModal: React.FC = () => {
       role="dialog"
       aria-modal="true"
       aria-labelledby="lock-screen-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && currentUser) {
+          handleClose();
+        }
+      }}
     >
-      <div className="bg-background border border-border w-full max-w-sm rounded-card p-6 sm:p-7 shadow-2xl flex flex-col items-center gap-5">
+      <div className="relative bg-background border border-border w-full max-w-sm rounded-card p-6 sm:p-7 shadow-2xl flex flex-col items-center gap-5">
+        {/* Tombol Tutup / Kembali di Sudut Kanan Atas */}
+        {currentUser && (
+          <button
+            type="button"
+            onClick={handleClose}
+            className="absolute top-4 right-4 sm:top-5 sm:right-5 size-8 rounded-full border border-input bg-card flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted active:scale-95 transition-all shadow-xs focus:outline-none focus:ring-2 focus:ring-ring z-10"
+            aria-label="Tutup layar kunci dan kembali"
+            title="Tutup (Kembali)"
+          >
+            <X className="size-4" />
+          </button>
+        )}
+
         {/* Brand Header */}
         <div className="flex flex-col items-center gap-1.5 text-center">
           <div className="size-11 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground shadow-md">
