@@ -307,4 +307,14 @@ Urutan: Opsi 3 (struk) → Opsi 2 (auto-lock) → Opsi 1 (barcode & label) → O
     - **Skenario Integrasi 1 Hari Operasional Penuh (`full-day-operations.test.ts`)**: Simulasi otomatis end-to-end tanpa mock buatan dari 07:30 Buka Kasir (Rp 200.000), 4 gelombang belanja kasir POS (tunai pas, dus kemasan besar dengan FEFO otomatis, beras curah repack berbarcode internal via QRIS, keranjang tahan & diskon kupon), 11:30 penerimaan kulakan 50 pouch minyak goreng moving cost, 14:00 void salah input & retur barang rusak (refund Rp 34.000 tanpa menambah stok jual), 16:30 penyesuaian barang hancur di rak (`DAMAGE_SPOILAGE`), 21:00 tutup kasir & rekonsiliasi uang fisik laci klop Rp 429.000 (selisih Rp 0), 21:30 ekspor backup SHA-256 hex string 64-karakter, dan verifikasi 6 invarian 100% lolos tanpa pelanggaran.
     - **Dokumen Panduan & Lembar Checklist UAT Manual (`docs/uat-checklist-manual.md`)**: 14 tahapan uji coba lapangan pada tablet Android dan printer kasir thermal fisik.
     - **Pengujian Lengkap**: 3 tes integrasi baru (2 unit `db-check.test.ts`, 1 skenario komprehensif `full-day-operations.test.ts`). Total **31 berkas uji, 151 tes lulus (100% green)**, `pnpm typecheck` bebas error, `pnpm db:check` lulus, dan `pnpm build` sukses.
+  - **Transparansi Rekonsiliasi Kasir, Fitur Alih Peran Pengguna (*Switch User/Role*), dan Sistem Auto-Deteksi Produk Duplikat**:
+    - **Rekonsiliasi Tutup Kasir Transparan (`CashierSessionModal.tsx`)**: Menampilkan rincian ekspektasi kas sistem (`Modal Awal + Penjualan Tunai − Refund Retur`), indikator selisih kas *real-time* saat kasir mengetik, dan tombol 1-klik *"Salin Target Kas ke Input"*.
+    - **Fitur Ganti Pengguna & Peran (`LockScreenModal.tsx`, `AppLayout.tsx`, `auth.service.ts`)**: Tombol `[ ⇄ Ganti ]` pada layar kunci, daftar pengguna aktif dengan badge peran semantik, pintasan alih peran di header topbar & drawer mobile, tombol close `✕`, serta pintasan `Esc` dan klik backdrop.
+    - **Sistem Auto-Deteksi & Penggabungan Produk Duplikat (`duplicate-detector.ts`, `DuplicateAssistantModal.tsx`, `ProductFormModal.tsx`, `catalog.service.ts`)**:
+      - Normalisasi teks sembako (`kg`, `gr`, `ltr`, `bks`, `dus`, `pcs`) dan skoring *Token Dice*.
+      - Deteksi tabrakan barcode (100%), kemiripan nama ($\ge 80\%$), dan varian eceran vs dus.
+      - Penggabungan stok 1-klik secara atomik via ledger `InventoryService` (`COUNT_ADJUSTMENT`) dan pengarsipan produk keliru (`active: 0`, AC-39).
+      - Pencegahan dini *real-time* di form tambah barang saat mengetik nama serupa atau memindai barcode ganda.
+    - **Pengujian**: Penambahan 9 tes baru (`auth.test.ts`, `duplicate-detector.test.ts`, `duplicate-merge.test.ts`). Total **33 berkas uji, 160 tes lulus (100% green)**, `pnpm typecheck` 0 error, `pnpm db:check` lulus, dan `pnpm build` sukses.
+
 
