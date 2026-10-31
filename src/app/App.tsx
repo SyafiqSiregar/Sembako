@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { DashboardView } from '@/features/dashboard/DashboardView';
 import { ProductCatalogView } from '@/features/catalog/ProductCatalogView';
@@ -15,20 +16,22 @@ import { HelpView } from '@/features/help/HelpView';
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
-      <AppLayout>
-        <Routes>
-          <Route path="/" element={<DashboardView />} />
-          <Route path="/pos" element={<PosView />} />
-          <Route path="/products" element={<ProductCatalogView />} />
-          <Route path="/inventory" element={<InventoryView />} />
-          <Route path="/expiry" element={<ExpiryView />} />
-          <Route path="/suppliers" element={<SuppliersView />} />
-          <Route path="/transactions" element={<TransactionHistoryView />} />
-          <Route path="/reports" element={<ReportsView />} />
-          <Route path="/settings" element={<SettingsView />} />
-          <Route path="/help" element={<HelpView />} />
-        </Routes>
-      </AppLayout>
+      <ErrorBoundary>
+        <AppLayout>
+          <Routes>
+            <Route path="/" element={<DashboardView />} />
+            <Route path="/pos" element={<PosView />} />
+            <Route path="/products" element={<ProductCatalogView />} />
+            <Route path="/inventory" element={<InventoryView />} />
+            <Route path="/expiry" element={<ExpiryView />} />
+            <Route path="/suppliers" element={<SuppliersView />} />
+            <Route path="/transactions" element={<TransactionHistoryView />} />
+            <Route path="/reports" element={<ReportsView />} />
+            <Route path="/settings" element={<SettingsView />} />
+            <Route path="/help" element={<HelpView />} />
+          </Routes>
+        </AppLayout>
+      </ErrorBoundary>
     </BrowserRouter>
   );
 };

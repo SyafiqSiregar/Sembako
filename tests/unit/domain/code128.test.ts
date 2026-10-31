@@ -63,3 +63,4 @@ describe('Domain: Code-128 Barcode Generator (code128.ts)', () => {
     expect(widthMm).toBeLessThanOrEqual(48);
   });
 });
+

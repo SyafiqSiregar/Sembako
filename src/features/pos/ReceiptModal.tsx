@@ -61,10 +61,6 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
     };
   }, [checkoutResult, cashierName, store, paperWidth]);
 
-  if (!isOpen || !checkoutResult || !payload) return null;
-
-  const lines = buildReceiptLines(payload);
-
   const barcodeLayout = useMemo(() => {
     if (!checkoutResult || store.printReceiptBarcode === false) return null;
     const moduleWidth = paperWidth === '58mm' ? 0.17 : 0.22;
@@ -78,7 +74,12 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
     return (words[0]![0]! + words[1]![0]!).toUpperCase();
   }, [store.storeName]);
 
+  const lines = useMemo(() => {
+    return payload ? buildReceiptLines(payload) : [];
+  }, [payload]);
+
   const handlePrint = async () => {
+    if (!payload) return;
     setIsPrinting(true);
     setPrintError(null);
     try {
@@ -89,6 +90,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
       setIsPrinting(false);
     }
   };
+
+  if (!isOpen || !checkoutResult || !payload) return null;
 
   return (
     <div

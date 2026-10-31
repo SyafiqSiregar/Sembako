@@ -63,8 +63,10 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [initialBatchCode, setInitialBatchCode] = useState('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGeneratingInternalBc, setIsGeneratingInternalBc] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const { currentUser, roleCodes } = useAuthStore();
   const catalogService = new CatalogService(db);
 
   useEffect(() => {
@@ -142,9 +144,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
   const calculatedWholesaleCost = parsedCost * (parsedWholesaleFactor || 1);
   const calculatedWholesaleProfit = parsedWholesalePrice - calculatedWholesaleCost;
-
-  const [isGeneratingInternalBc, setIsGeneratingInternalBc] = useState(false);
-  const { currentUser, roleCodes } = useAuthStore();
 
   const handleGenerateInternalBarcode = async () => {
     if (!editingProduct || !currentUser) return;
