@@ -4,6 +4,44 @@ Catatan seluruh perubahan, implementasi fitur, pembaruan skema, dan keputusan ar
 
 Format mengacu pada [Keep a Changelog](https://keepachangelog.com/id/1.0.0/).
 
+## [Simulasi UAT 1 Hari Penuh, Pemeriksa 6 Invarian Database & Checklist Lapangan (Fase 6, Pilihan B)] - 2026-10-31
+
+**Implementasi Simulasi UAT End-to-End, Invariant Verifier, dan Panduan Checklist Fisik (PRD §8, DATABASE.md §5, rencana_lanjutan.md Opsi 4):**
+- **Pemeriksa 6 Invarian Database Wajib (`src/domain/audit/verify-invariants.ts`):**
+  - Implementasi fungsi audit basis data otomatis `verifyDatabaseInvariants(db)` yang memeriksa seluruh aturan integritas data:
+    1. **INV-1 Konsistensi Saldo vs Mutasi Ledger:** Memverifikasi bahwa setiap baris `inventory_balances.qty_base` persis sama dengan jumlah mutasi `stock_movement_items.qty_delta_base` untuk setiap kombinasi `[product_id, batch_id]`.
+    2. **INV-2 Kekekalan Riwayat Ledger & Audit Log:** Memastikan seluruh record `stock_movements` memiliki minimal 1 rincian item, `user_id`, waktu UTC integer, dan tabel `audit_logs` utuh tanpa data corrupt.
+    3. **INV-3 Integritas Uang Integer Rupiah & Rekonsiliasi Kas:** Seluruh nilai rupiah pada `payments`, `sales`, `returns`, dan `cashier_sessions` adalah integer positif/nol (dilarang pecahan desimal), serta rekonsiliasi kas sesi tertutup valid.
+    4. **INV-4 Keutuhan Snapshot Transaksi:** Memastikan setiap item penjualan memiliki snapshot harga jual (`unit_price_snapshot`), modal pokok (`unit_cost_x10k_snapshot`), nama barang, dan satuan.
+    5. **INV-5 Validitas Alokasi Batch & Expiry (FEFO):** Memastikan seluruh produk ber-expiry yang terjual tercatat alokasi batch-nya di `sale_item_batches` seimbang 100% dengan kuantitas yang dibeli (`sale_items.qty_base`).
+    6. **INV-6 Larangan Saldo Negatif:** Memvalidasi tidak ada saldo fisik yang bernilai minus di bawah 0.
+  - Perintah CLI otomatis: script `"db:check"` di `package.json` yang menjalankan `tests/integration/services/db-check.test.ts`.
+- **Perbaikan Alokasi Batch Kasir (`src/services/checkout.service.ts`):**
+  - Menghubungkan proses checkout dengan tabel `sale_item_batches` secara atomik di dalam transaksi Dexie checkout, menjamin seluruh alokasi batch FEFO tercatat permanen untuk audit jejak penarikan produk kedaluwarsa.
+- **Skenario Integrasi UAT Satu Hari Penuh (`tests/integration/scenarios/full-day-operations.test.ts`):**
+  - Menguji siklus hidup 1 hari operasional toko sembako dari buka kas hingga tutup toko:
+    - **07:30 WIB**: Buka sesi kasir pagi dengan modal laci Rp 200.000.
+    - **08:00–11:00 WIB (POS Sales)**:
+      1. Transaksi tunai uang pas: 2 Pouch Minyak Goreng 2L (@ Rp 34.000) = Rp 68.000.
+      2. Transaksi multi-satuan grosir & FEFO otomatis: 1 Dus Indomie Goreng (40 pcs) = Rp 130.000 (sistem otomatis memotong habis Batch 1 yang expired lebih dekat).
+      3. Transaksi barcode internal toko prefix 20 non-tunai: 2 kg Beras Curah Repack = Rp 35.000 dibayar via QRIS statis.
+      4. Skenario tahan keranjang (*Hold Cart*): Pelanggan A pesan beras curah, ditahan; kasir layani Pelanggan B (Sabun Cuci Rp 12.000 tunai); keranjang Pelanggan A dipulihkan kembali dengan diskon kupon Rp 5.000 dibayar tunai Rp 65.000.
+    - **11:30 WIB (Goods Receipt)**: Penerimaan 50 pouch minyak goreng modal baru Rp 28.500 dari PT Sumber Pangan Sejahtera, saldo inventaris bertambah menjadi 68 pouch (136.000 ml).
+    - **14:00 WIB (Pengecualian Kasir)**: Void transaksi Pelanggan B (salah input barang); Retur 1 pouch minyak goreng kemasan bocor (*Damaged*), refund uang tunai Rp 34.000 keluar dari kas, stok tidak bertambah karena barang rusak.
+    - **16:30 WIB (Penyesuaian Stok)**: Pemusnahan 1 bungkus mie instan rusak di rak toko via `DAMAGE_SPOILAGE`.
+    - **21:00 WIB (Tutup Kasir)**: Rekonsiliasi kas fisik laci (Rp 200.000 + 68.000 + 130.000 + 65.000 - 34.000 = Rp 429.000) dengan selisih tepat Rp 0. Sesi kasir terkunci dan ditutup rapi.
+    - **21:30 WIB (Pencadangan Data)**: Ekspor backup database terenkripsi SHA-256 hex string 64-karakter.
+    - **Verifikasi Invarian**: Menjalankan `verifyDatabaseInvariants(db)` dengan hasil 100% lulus (6/6 invarian).
+- **Panduan & Lembar Checklist UAT Manual (`docs/uat-checklist-manual.md`):**
+  - Lembar checklist terstruktur dengan 14 tahapan uji coba lapangan di tablet Android nyata dan printer thermal ESC/POS 58/80 mm, serta verifikasi mutu fisik cetak struk kasir.
+- **Verifikasi & Build:**
+  - `pnpm typecheck`: 0 errors.
+  - `pnpm db:check`: 2 tests passed.
+  - `pnpm test`: 31 files, 151 tests passed (100% green).
+  - `pnpm build`: Vite bundle production berhasil (806 kB JS, 47.8 kB CSS).
+
+---
+
 ## [Modernisasi Struk Kasir & Logo Toko Thermal (Fase 6)] - 2026-10-31
 
 **Penyempurnaan Desain Struk Kasir Profesional & Logo Toko Thermal (PRD FR-POS-10, Opsi 3 Lanjutan):**

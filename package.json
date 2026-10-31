@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "seed:demo": "vitest run tests/integration/services/seed-demo.test.ts",
+    "db:check": "vitest run tests/integration/services/db-check.test.ts",
     "check": "pnpm typecheck && pnpm test"
   },
   "dependencies": {

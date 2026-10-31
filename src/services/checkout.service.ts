@@ -2,6 +2,7 @@ import {
   SembakoDatabase,
   type Sale,
   type SaleItem,
+  type SaleItemBatch,
   type Payment,
 } from '@/data/db';
 import { InventoryService } from './inventory.service';
@@ -172,6 +173,7 @@ export class CheckoutService {
       [
         this.db.sales,
         this.db.sale_items,
+        this.db.sale_item_batches,
         this.db.payments,
         this.db.inventory_balances,
         this.db.stock_movements,
@@ -188,8 +190,11 @@ export class CheckoutService {
           qtyDeltaBase: number;
           unitCostX10k: number;
         }[] = [];
+        const saleItemBatches: SaleItemBatch[] = [];
 
-        for (const it of params.items) {
+        for (let i = 0; i < params.items.length; i++) {
+          const it = params.items[i]!;
+          const correspondingSaleItem = saleItems[i]!;
           const prod = await this.db.products.get(it.productId);
           if (prod && prod.track_expiry === 1) {
             if (it.batchId) {
@@ -205,6 +210,11 @@ export class CheckoutService {
                 qtyDeltaBase: -it.qtyBase,
                 unitCostX10k: it.unitCostX10kSnapshot,
               });
+              saleItemBatches.push({
+                sale_item_id: correspondingSaleItem.id,
+                batch_id: it.batchId,
+                qty_base: it.qtyBase,
+              });
             } else {
               // FEFO allocation otomatis (FR-EXP-03, AC-24)
               const allocations = await this.batchService.allocateFefo(it.productId, it.qtyBase);
@@ -214,6 +224,11 @@ export class CheckoutService {
                   batchId: alloc.batchId,
                   qtyDeltaBase: -alloc.qtyBase,
                   unitCostX10k: it.unitCostX10kSnapshot,
+                });
+                saleItemBatches.push({
+                  sale_item_id: correspondingSaleItem.id,
+                  batch_id: alloc.batchId,
+                  qty_base: alloc.qtyBase,
                 });
               }
             }
@@ -240,6 +255,9 @@ export class CheckoutService {
         // Simpan penjualan & item
         await this.db.sales.add(saleHeader);
         await this.db.sale_items.bulkAdd(saleItems);
+        if (saleItemBatches.length > 0) {
+          await this.db.sale_item_batches.bulkAdd(saleItemBatches);
+        }
         await this.db.payments.add(paymentRecord);
       }
     );
