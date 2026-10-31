@@ -163,7 +163,7 @@ export function renderCode128Svg(text: string, options: Code128RenderOptions = {
   if (!modules) return '';
 
   const totalWidthMm = modules.length * moduleWidthMm;
-  const totalHeightMm = showText ? barHeightMm + fontSizeMm + 2 : barHeightMm;
+  const totalHeightMm = showText ? barHeightMm + fontSizeMm + 1.5 : barHeightMm;
 
   let rects = '';
   let inBar = false;
@@ -189,7 +189,7 @@ export function renderCode128Svg(text: string, options: Code128RenderOptions = {
   }
 
   const textElement = showText
-    ? `<text x="${(totalWidthMm / 2).toFixed(2)}" y="${(barHeightMm + fontSizeMm + 0.8).toFixed(2)}" font-family="Courier New, monospace" font-size="${fontSizeMm}mm" font-weight="bold" text-anchor="middle" fill="#000000" letter-spacing="0.5px">${cleanText}</text>`
+    ? `<text x="${(totalWidthMm / 2).toFixed(2)}" y="${(barHeightMm + fontSizeMm + 0.4).toFixed(2)}" font-family="Courier New, monospace" font-size="${fontSizeMm}" font-weight="bold" text-anchor="middle" fill="#000000">${cleanText}</text>`
     : '';
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalWidthMm.toFixed(2)} ${totalHeightMm.toFixed(2)}" width="${totalWidthMm.toFixed(2)}mm" height="${totalHeightMm.toFixed(2)}mm" shape-rendering="crispEdges" style="display:block;margin:0 auto;">${rects}${textElement}</svg>`;

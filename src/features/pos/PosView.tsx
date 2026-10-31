@@ -184,22 +184,31 @@ export const PosView: React.FC = () => {
     const code = barcodeInput.trim();
     if (!code) return;
 
-    // Scan Barcode Nomor Struk (STR-...) untuk retur / cek riwayat transaksi cepat
-    if (code.toUpperCase().startsWith('STR-')) {
-      setBarcodeInput('');
+    // Scan Barcode Nomor Struk (KASIR1-..., STR-...) untuk retur / cek riwayat transaksi cepat
+    const isReceiptCandidate =
+      code.toUpperCase().startsWith('STR-') ||
+      /^[A-Z0-9]+-\d{8}-\d+/i.test(code);
+
+    if (isReceiptCandidate) {
       db.sales.where('receipt_no').equals(code).first().then((sale) => {
         if (sale) {
+          setBarcodeInput('');
           showNotification('success', `Struk #${code} terdeteksi. Membuka riwayat transaksi...`);
           setTimeout(() => {
             navigate(`/transactions?search=${encodeURIComponent(code)}`);
           }, 600);
         } else {
-          showNotification('error', `Nomor struk ${code} tidak ditemukan.`);
+          // Jika bukan nomor struk yang tersimpan, lanjutkan pencarian barcode barang
+          processItemBarcode(code);
         }
       });
       return;
     }
 
+    processItemBarcode(code);
+  };
+
+  const processItemBarcode = (code: string) => {
     if (!searchIndex) return;
 
     const hit = searchIndex.searchBarcode(code);

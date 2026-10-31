@@ -172,13 +172,13 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
 
             {/* Barcode Nomor Struk Code-128 */}
             {barcodeLayout && barcodeLayout.bars.length > 0 && (
-              <div className="mt-3 pt-1 text-center flex flex-col items-center">
+              <div className="mt-3.5 pt-1 text-center flex flex-col items-center">
                 <svg
-                  viewBox={`0 0 ${barcodeLayout.totalWidthMm} 10`}
+                  viewBox={`0 0 ${barcodeLayout.totalWidthMm} 8`}
                   width={`${barcodeLayout.totalWidthMm}mm`}
-                  height="10mm"
+                  height="8mm"
                   shapeRendering="crispEdges"
-                  className="mx-auto"
+                  className="mx-auto block"
                 >
                   {barcodeLayout.bars.map((bar, i) => (
                     <rect
@@ -186,23 +186,14 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                       x={bar.xMm}
                       y={0}
                       width={bar.widthMm}
-                      height={7.5}
+                      height={8}
                       fill="#000000"
                     />
                   ))}
-                  <text
-                    x={barcodeLayout.totalWidthMm / 2}
-                    y={9.5}
-                    fontFamily="Courier New, monospace"
-                    fontSize="2mm"
-                    fontWeight="bold"
-                    textAnchor="middle"
-                    fill="#000000"
-                    letterSpacing="0.5px"
-                  >
-                    {barcodeLayout.text}
-                  </text>
                 </svg>
+                <div className="text-[10px] sm:text-[11px] font-mono font-bold tracking-wider mt-1 text-black select-all">
+                  {barcodeLayout.text}
+                </div>
               </div>
             )}
           </div>
