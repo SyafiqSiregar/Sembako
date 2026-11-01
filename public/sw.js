@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sembako-os-shell-v1';
+const CACHE_NAME = 'sembako-os-shell-v2';
 const CORE_ASSETS = [
   '/',
   '/index.html',
@@ -33,13 +33,30 @@ self.addEventListener('fetch', (event) => {
   // Hanya intercept request GET
   if (event.request.method !== 'GET') return;
 
+  // Network-First untuk navigasi HTML agar update baru di Vercel selalu langsung tampil saat online,
+  // namun tetap otomatis fallback ke cache saat offline.
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', copy));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match('/index.html'))
+    );
+    return;
+  }
+
+  // Cache-First untuk aset statis ber-hash (/assets/*)
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
         return cachedResponse;
       }
       return fetch(event.request).then((networkResponse) => {
-        // Cache dynamic static assets
         if (
           networkResponse &&
           networkResponse.status === 200 &&
@@ -51,11 +68,6 @@ self.addEventListener('fetch', (event) => {
           });
         }
         return networkResponse;
-      }).catch(() => {
-        // Offline fallback to index.html for navigation requests
-        if (event.request.mode === 'navigate') {
-          return caches.match('/index.html');
-        }
       });
     })
   );
